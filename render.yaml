@@ -28,6 +28,6 @@ services:
           property: connectionString
 
 databases:
-  - name: telegram-shop-db-4rm0
+  - name: telegram-shop-db-4rm1
     plan: basic-256mb
     databaseName: telegram_shop
