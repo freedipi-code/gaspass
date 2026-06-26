@@ -7,10 +7,10 @@
 
 module.exports = {
   // Display name shown in welcome message header
-  name: "GasPass Shop",
+  name: "Canna Express Shop",
 
   // Vendor name shown on product pages (-- by VendorName)
-  vendorName: "GasPassAC",
+  vendorName: "cannaexpressz",
   vendorCommand: "/vendor",
 
   // Emoji prepended/appended to the shop name in welcome
@@ -18,12 +18,12 @@ module.exports = {
 
   // Welcome intro text (storefront style)
   welcomeText: [
-    "Welcome to GasPass's storefront.",
+    "Welcome to Canna Express storefront.",
     "",
     "We're here to offer the best quality flower at the best prices possible. "
     + "If you're looking for premium imported or local flowers, this is the place for you. "
     + "We care deeply about providing the best customer service & ensuring quality is close to perfection. "
-    + "Come through and fill up with the GasPass team.",
+    + "Come through and fill up with the Canna Express team.",
   ].join("\n"),
 
   // Shipping policy line (1-2 short lines max)
@@ -42,14 +42,14 @@ module.exports = {
   ownerStatusLine: "🟢 Online",  // overridden if you want dynamic status later
 
   // Footer
-  footerLink: "https://t.me/GaspassAC",
-  footerText: "Powered by GasPass Shop",
+  footerLink: "https://t.me/cannaexpressz",
+  footerText: "Powered by Canna Express Shop",
 
   // About page command
   aboutCommand: "/info",
 
   // Welcome cover image (path to local file OR public URL OR empty for text-only)
-  welcomeImage: "images/00.jpeg",
+  welcomeImage: "images/cana.jpeg",
 
   // Currency symbol
   currency: "$",
