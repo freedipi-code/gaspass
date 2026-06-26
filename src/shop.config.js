@@ -49,7 +49,7 @@ module.exports = {
   aboutCommand: "/info",
 
   // Welcome cover image (path to local file OR public URL OR empty for text-only)
-  welcomeImage: "images/cana.jpeg",
+  welcomeImage: "images/00.jpeg",
 
   // Currency symbol
   currency: "$",
