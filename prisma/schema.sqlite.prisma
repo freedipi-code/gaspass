@@ -1,0 +1,138 @@
+// Schéma SQLite local utilisé uniquement pour copier les données vers PostgreSQL.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/sqlite-client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  telegramId String   @unique
+  username   String?
+  fullName   String?
+  createdAt  DateTime @default(now())
+
+  cart    Cart?
+  orders  Order[]
+  reviews Review[]
+}
+
+model Category {
+  id       Int    @id @default(autoincrement())
+  name     String
+  parentId Int?
+
+  parent   Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryChildren")
+  products Product[]
+}
+
+model Product {
+  id            Int     @id @default(autoincrement())
+  name          String
+  price         Float
+  image         String?
+  description   String?
+  stock         Int     @default(0)
+  active        Boolean @default(true)
+  rating        Float   @default(0)
+  purchaseCount Int     @default(0)
+  isNew         Boolean @default(false)
+
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  variants   ProductVariant[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  reviews    Review[]
+}
+
+model ProductVariant {
+  id        Int    @id @default(autoincrement())
+  productId Int
+  label     String // ex: "1kg", "5kg", "10kg"
+  price     Float  // prix pour cette variante
+  sortOrder Int    @default(0)
+
+  product   Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems CartItem[]
+  orderItems OrderItem[]
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  userId    Int
+  rating    Float
+  comment   String?
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+}
+
+model Cart {
+  id        Int        @id @default(autoincrement())
+  userId    Int        @unique
+  user      User       @relation(fields: [userId], references: [id])
+  items     CartItem[]
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        Int  @id @default(autoincrement())
+  cartId    Int
+  productId Int
+  variantId Int?
+  quantity  Int  @default(1)
+  unitPrice Float @default(0)
+
+  cart    Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@unique([cartId, productId, variantId])
+}
+
+model Order {
+  id              Int      @id @default(autoincrement())
+  orderNumber     String   @unique
+  userId          Int
+  total           Float
+  paymentMethod   String   // "BTC" | "LTC"
+  status          String   @default("pending") // pending | paid | cancelled | shipped
+  shippingName    String
+  shippingCountry String
+  shippingStreet  String
+  shippingApt     String?
+  shippingCity    String
+  shippingState   String?
+  shippingZip     String?
+  notes           String?
+  refundAddress   String?
+  proofMessage    String?  // référence du message de preuve envoyé par le client
+  createdAt       DateTime @default(now())
+
+  user  User        @relation(fields: [userId], references: [id])
+  items OrderItem[]
+}
+
+model OrderItem {
+  id        Int    @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  variantId Int?
+  quantity  Int
+  price     Float  // prix unitaire au moment de la commande
+  label     String? // label de la variante au moment de la commande
+
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+}
