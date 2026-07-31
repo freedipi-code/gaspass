@@ -7,10 +7,10 @@
 
 module.exports = {
   // Display name shown in welcome message header
-  name: "Gaspass Shop",
+  name: "Queen Tetras Shop",
 
   // Vendor name shown on product pages (-- by VendorName)
-  vendorName: "GaspassAC",
+  vendorName: "QueenTetrassit",
   vendorCommand: "/vendor",
 
   // Emoji prepended/appended to the shop name in welcome
@@ -18,12 +18,13 @@ module.exports = {
 
   // Welcome intro text (storefront style)
   welcomeText: [
-    "Welcome to Gaspass storefront.",
+    "Welcome to Queen Tetra.",
     "",
-    "We're here to offer the best quality flower at the best prices possible. "
-    + "If you're looking for premium imported or local flowers, this is the place for you. "
-    + "We care deeply about providing the best customer service & ensuring quality is close to perfection. "
-    + "Come through and fill up with the Gaspass team.",
+    "All orders are shipped within 24-48hrs and traking will be provided upon request. "
+    + "$10 shipping on all orders. "
+    + "Wholesale pricing available. "
+    + "Exclusive Products."
+    + "$50 minimum on first time orders ONLY, after that its $100 minimum.",
   ].join("\n"),
 
   // Shipping policy line (1-2 short lines max)
@@ -42,8 +43,8 @@ module.exports = {
   ownerStatusLine: "🟢 Online",  // overridden if you want dynamic status later
 
   // Footer
-  footerLink: "https://t.me/GaspassAC",
-  footerText: "Powered by Gaspass Shop",
+  footerLink: "https://t.me/QueenTetrassit",
+  footerText: "Powered by SI Market",
 
   // About page command
   aboutCommand: "/info",
@@ -64,7 +65,7 @@ module.exports = {
     "Worldwide shipping available.",
     "",
     "💳 *Payment*",
-    "We accept BTC and LTC.",
+    "We accept BTC and XMR.",
     "Payment instructions are shown after checkout.",
     "",
     "↩️ *Returns*",
