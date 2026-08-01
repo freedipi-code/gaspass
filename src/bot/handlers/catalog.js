@@ -110,7 +110,7 @@ async function showHome(ctx) {
   for (const cat of rootCategories) {
     const slug = categorySlug(cat.name);
     categoryLines.push(`*${cat.name}:*`);
-    categoryLines.push(`/v_qtetra_${slug}`);
+    categoryLines.push(`/v_qtetra_${slug}`.replace(/_/g, '\\_'));
     categoryLines.push('');
   }
 
@@ -123,26 +123,26 @@ async function showHome(ctx) {
     `■ $50 minimum on first time orders ONLY, after that its $100 minimum`,
     ``,
     `*Custom Order:*`,
-    `/v_qtetra_create_custom_order`,
+    `/v_qtetra_create_custom_order`.replace(/_/g, '\\_'),
     ``,
     `*Previous Orders:*`,
     `/orders`,
     ``,
     `*Clearance Rack:*`,
-    `/v_qtetra_clearance_rack - CLEARANCE RACK!`,
+    `/v_qtetra_clearance_rack - CLEARANCE RACK!`.replace(/_/g, '\\_'),
     ``,
     ...categoryLines,
     `*About Us:*`,
-    `/about_qtetra`,
+    `/about_qtetra`.replace(/_/g, '\\_'),
     ``,
     `*Refund Policy:*`,
-    `/v_qtetra_refunds`,
+    `/v_qtetra_refunds`.replace(/_/g, '\\_'),
     ``,
     `*Shipping FAQs:*`,
-    `/v_qtetra_shipping`,
+    `/v_qtetra_shipping`.replace(/_/g, '\\_'),
     ``,
     `*Our PGP key:*`,
-    `/pgp_qtetra`
+    `/pgp_qtetra`.replace(/_/g, '\\_')
   ];
 
   const text = welcomeLines.join('\n');
