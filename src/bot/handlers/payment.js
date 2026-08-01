@@ -38,12 +38,12 @@ function register(bot) {
       cryptoAmount = 'Error calculating amount';
     }
 
-    const walletAddress = order.paymentMethod === 'BTC' ? config.wallets.btc : config.wallets.ltc;
+    const walletAddress = order.paymentMethod === 'BTC' ? config.wallets.btc : config.wallets.xmr;
     
     // Generate QR code using quickchart API
-    // We format the URI according to BIP21 for BTC and similar for LTC
-    const coinUriPrefix = order.paymentMethod === 'BTC' ? 'bitcoin:' : 'litecoin:';
-    const paymentUri = `${coinUriPrefix}${walletAddress}?amount=${cryptoAmount}`;
+    const coinUriPrefix = order.paymentMethod === 'BTC' ? 'bitcoin:' : 'monero:';
+    const amountParamName = order.paymentMethod === 'BTC' ? 'amount' : 'tx_amount';
+    const paymentUri = `${coinUriPrefix}${walletAddress}?${amountParamName}=${cryptoAmount}`;
     const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(paymentUri)}&size=400&margin=2`;
 
     const message = `Order ${order.orderNumber}\n\n*Next step:*\n\nSend\n\`${cryptoAmount} ${order.paymentMethod}\`\nto\n\`${walletAddress}\`\n\nYou have 30 minutes to send the full payment (it can confirm on the blockchain later). Several payments within 30 minutes are OK. If your payment is detected after 30 minutes, it will be automatically refunded.\n\nOrder details: /ord\\_${order.orderNumber}`;

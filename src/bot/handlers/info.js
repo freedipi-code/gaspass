@@ -27,6 +27,29 @@ function register(bot) {
   bot.command('info', showInfo);
   bot.command('about_shop', showInfo);
   bot.hears('/about_shop', showInfo);
+  
+  // Custom storefront deep link commands
+  bot.hears('/about_qtetra', showInfo);
+  bot.command('about_qtetra', showInfo);
+
+  const pgpHandler = async (ctx) => {
+    const pgpText = [
+      `🔐 *PGP Public Key*`,
+      ``,
+      `\`\`\``,
+      `-----BEGIN PGP PUBLIC KEY BLOCK-----`,
+      `Version: Key-ID 0x4D3F2C1B`,
+      ``,
+      `mQENBF7Z... [QUEEN TETRA SHOP PGP KEY]`,
+      `xsFNBF5v...`,
+      `-----END PGP PUBLIC KEY BLOCK-----`,
+      `\`\`\``
+    ].join('\n');
+    return ctx.reply(pgpText, { parse_mode: 'Markdown' });
+  };
+
+  bot.hears('/pgp_qtetra', pgpHandler);
+  bot.command('pgp_qtetra', pgpHandler);
 }
 
 module.exports = { register };

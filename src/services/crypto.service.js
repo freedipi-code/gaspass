@@ -31,7 +31,7 @@ async function getCryptoPrice(cryptoCode) {
   } catch (err) {
     console.error(`Failed to fetch price for ${cryptoCode}:`, err.message);
     if (cryptoCode === 'BTC') return 100000;
-    if (cryptoCode === 'LTC') return 80;
+    if (cryptoCode === 'XMR') return 160;
     throw err;
   }
 }
