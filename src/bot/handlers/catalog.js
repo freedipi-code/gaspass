@@ -106,74 +106,59 @@ async function showHome(ctx) {
     orderBy: { id: 'asc' }
   });
 
+  // Build compact category lines (name: /command on same line)
   const categoryLines = [];
   for (const cat of rootCategories) {
     const slug = categorySlug(cat.name);
-    categoryLines.push(`*${cat.name}:*`);
-    categoryLines.push(`/v_qtetra_${slug}`.replace(/_/g, '\\_'));
-    categoryLines.push('');
+    const cmd = `/v_qtetra_${slug}`.replace(/_/g, '\\_');
+    categoryLines.push(`*${cat.name}:* ${cmd}`);
   }
 
-  const welcomeLines = [
-    `*QUEEN TETRA'S | EXCLUSIVE Private Menu*`,
-    `━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `■ All orders are shipped within 24-48hrs and tracking will be provided upon request ■ $10 shipping on all orders`,
-    `■ Wholesale Pricing Available`,
-    `■ Exclusive Products`,
-    `■ $50 minimum on first time orders ONLY, after that its $100 minimum`,
+  // Caption — keep under 1024 chars (Telegram limit)
+  const captionLines = [
+    `■All orders are shipped within 24-48hrs and tracking will be provided upon request ■$10 shipping on all orders`,
+    `■Wholesale Pricing Available`,
+    `■Exclusive Products`,
+    `■$50 minimum on first time orders ONLY, after that its $100 minimum`,
     ``,
-    `*Custom Order:*`,
+    `Custom Order:`,
     `/v_qtetra_create_custom_order`.replace(/_/g, '\\_'),
     ``,
-    `*Previous Orders:*`,
+    `Previous Orders:`,
     `/orders`,
     ``,
-    `*Clearance Rack:*`,
-    `/v_qtetra_clearance_rack - CLEARANCE RACK!`.replace(/_/g, '\\_'),
+    `Clearance Rack:`,
+    `/v_qtetra_clearance_rack`.replace(/_/g, '\\_') + ` - CLEARANCE RACK!`,
     ``,
     ...categoryLines,
-    `*About Us:*`,
-    `/about_qtetra`.replace(/_/g, '\\_'),
     ``,
-    `*Refund Policy:*`,
-    `/v_qtetra_refunds`.replace(/_/g, '\\_'),
-    ``,
-    `*Shipping FAQs:*`,
-    `/v_qtetra_shipping`.replace(/_/g, '\\_'),
-    ``,
-    `*Our PGP key:*`,
-    `/pgp_qtetra`.replace(/_/g, '\\_')
+    `About: /about_qtetra`.replace(/_/g, '\\_'),
+    `Refunds: /v_qtetra_refunds`.replace(/_/g, '\\_'),
+    `Shipping: /v_qtetra_shipping`.replace(/_/g, '\\_'),
+    `PGP: /pgp_qtetra`.replace(/_/g, '\\_'),
   ];
 
-  const text = welcomeLines.join('\n');
+  const caption = captionLines.join('\n');
   const photoSrc = resolveImage(shop.welcomeImage);
-  const opts = {
-    parse_mode: 'Markdown',
-    disable_web_page_preview: true,
-  };
 
   if (ctx.callbackQuery) {
     await ctx.answerCbQuery().catch(() => {});
-    try {
-      if (ctx.callbackQuery.message?.photo) {
-        await ctx.editMessageCaption(text, opts);
-      } else {
-        await ctx.editMessageText(text, opts);
-      }
-      return;
-    } catch (_) {}
   }
 
   if (photoSrc) {
     try {
       await ctx.replyWithPhoto(photoSrc, {
-        caption: text,
-        ...opts,
+        caption,
+        parse_mode: 'Markdown',
       });
       return;
-    } catch (_) {}
+    } catch (e) {
+      console.error('Failed to send welcome photo with caption:', e.message);
+      console.error('Caption length:', caption.length);
+    }
   }
-  await ctx.reply(text, opts);
+
+  await ctx.reply(caption, { parse_mode: 'Markdown' });
 }
 
 // Show the catalog page
