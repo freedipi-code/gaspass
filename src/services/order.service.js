@@ -20,7 +20,7 @@ async function createOrderFromCart(userId, orderData) {
     }
   }
 
-  const total = cartService.computeTotal(cart);
+  const total = cartService.computeTotal(cart) + 10.00;
   const orderNumber = generateOrderNumber();
 
   const order = await prisma.$transaction(async (tx) => {

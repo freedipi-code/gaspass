@@ -18,7 +18,7 @@ const config = {
   },
   wallets: {
     btc: process.env.BTC_WALLET || '',
-    ltc: process.env.LTC_WALLET || '',
+    xmr: process.env.XMR_WALLET || '',
   },
 };
 

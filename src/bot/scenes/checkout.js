@@ -6,52 +6,52 @@ const { formatPrice } = require('../keyboards');
 // -- Checkout State Machine --
 const STEPS = {
   NAME: 'name',
-  COUNTRY: 'country',
   STREET: 'street',
+  APT: 'apt',
   CITY: 'city',
-  APT: 'apt', // Only accessible via edit
+  POSTCODE: 'postcode',
+  COUNTRY: 'country',
+  REVIEW_SHIPPING: 'review_shipping',
   PAYMENT_METHOD: 'payment_method',
   REFUND: 'refund',
   SUMMARY: 'summary',
 };
 
-// Helpers to format the step prompts
-function buildShippingHeader() {
-  return `📦 *Shipping Details*\n`;
+// Format the shipping address block as blockquote
+function buildShippingBlock(data) {
+  const lines = [
+    data.shippingName || '',
+    data.shippingStreet || '',
+    (data.shippingApt && data.shippingApt !== 'n/a') ? data.shippingApt : '',
+    data.shippingCity || '',
+    data.shippingZip || '',
+    data.shippingCountry || ''
+  ].filter(Boolean);
+  
+  return lines.map(line => `> ${line}`).join('\n');
 }
 
-function buildShippingRecap(data) {
-  let recap = buildShippingHeader();
-  if (data.shippingName) recap += `Recipient Full Name:\n*${data.shippingName}*\n`;
-  if (data.shippingCountry) recap += `Country:\n*${data.shippingCountry}*\n`;
-  if (data.shippingStreet) recap += `Street Address:\n*${data.shippingStreet}*\n`;
-  if (data.shippingApt) recap += `Apartment number or PO Box:\n_${data.shippingApt}_\n`;
-  if (data.shippingCity) recap += `City:\n*${data.shippingCity}*\n`;
-  return recap;
-}
-
-function buildEditButtons(data) {
-  const btns = [];
-  btns.push([
-    Markup.button.callback('< Cancel', 'checkout:cancel'),
-    Markup.button.callback('Restart', 'checkout:edit:name'),
-  ]);
-  
-  const row2 = [];
-  if (data.shippingName) row2.push(Markup.button.callback('Name', 'checkout:edit:name'));
-  if (data.shippingCountry) row2.push(Markup.button.callback('Country', 'checkout:edit:country'));
-  if (row2.length) btns.push(row2);
-  
-  const row3 = [];
-  if (data.shippingStreet) row3.push(Markup.button.callback('Street Address', 'checkout:edit:street'));
-  if (data.shippingApt) row3.push(Markup.button.callback('Ap.No. / Po box', 'checkout:edit:apt'));
-  if (row3.length) btns.push(row3);
-  
-  const row4 = [];
-  if (data.shippingCity) row4.push(Markup.button.callback('City', 'checkout:edit:city'));
-  if (row4.length) btns.push(row4);
-  
-  return btns;
+// Build the review keyboard matching Image 1
+function buildReviewKeyboard() {
+  return [
+    [
+      Markup.button.callback('< Cancel', 'checkout:cancel'),
+      Markup.button.callback('Restart', 'checkout:restart'),
+      Markup.button.callback('✅ Okay', 'checkout:step:payment_method')
+    ],
+    [
+      Markup.button.callback('Name', 'checkout:edit:name'),
+      Markup.button.callback('Street Address', 'checkout:edit:street')
+    ],
+    [
+      Markup.button.callback('Ap.No. / Po box', 'checkout:edit:apt'),
+      Markup.button.callback('City', 'checkout:edit:city')
+    ],
+    [
+      Markup.button.callback('Postcode', 'checkout:edit:postcode'),
+      Markup.button.callback('Country', 'checkout:edit:country')
+    ]
+  ];
 }
 
 async function renderStep(ctx) {
@@ -61,83 +61,127 @@ async function renderStep(ctx) {
 
   switch (data.step) {
     case STEPS.NAME:
-      text = buildShippingHeader() + `\n💬 Type in the recipient's First and Last Name only (example: John Smtih) and hit "send." (Or enter the Business Name).`;
-      keyboard = [
-        [Markup.button.callback('< Cancel', 'checkout:cancel')],
-        [Markup.button.callback('Encrypt my shipping details', 'checkout:noop')]
-      ];
-      break;
-
-    case STEPS.COUNTRY:
-      text = buildShippingRecap(data) + `\n💬 Send me Country:`;
-      keyboard = buildEditButtons(data);
+      text = `📦 *Shipping Details*\n\n💬 Send recipient full Name:`;
+      keyboard = [[Markup.button.callback('< Cancel', 'checkout:cancel')]];
       break;
 
     case STEPS.STREET:
-      text = buildShippingRecap(data) + `\n💬 Now send me the Street Address. For example: 2549 Main Street.`;
-      keyboard = buildEditButtons(data);
+      text = `📦 *Shipping Details*\n\n💬 Send Street Address:`;
+      keyboard = [[Markup.button.callback('< Cancel', 'checkout:cancel')]];
       break;
-      
+
     case STEPS.APT:
-      text = buildShippingRecap(data) + `\n💬 Send me Apartment number or PO Box:`;
-      keyboard = buildEditButtons(data);
+      text = `📦 *Shipping Details*\n\n💬 Send Apartment number or PO Box (or click Skip):`;
+      keyboard = [
+        [Markup.button.callback('Skip', 'checkout:skip_apt')],
+        [Markup.button.callback('< Cancel', 'checkout:cancel')]
+      ];
       break;
 
     case STEPS.CITY:
-      text = buildShippingRecap(data) + `\n💬 Send me City/Zip code:`;
-      keyboard = buildEditButtons(data);
+      text = `📦 *Shipping Details*\n\n💬 Send City:`;
+      keyboard = [[Markup.button.callback('< Cancel', 'checkout:cancel')]];
+      break;
+
+    case STEPS.POSTCODE:
+      text = `📦 *Shipping Details*\n\n💬 Send Postcode:`;
+      keyboard = [[Markup.button.callback('< Cancel', 'checkout:cancel')]];
+      break;
+
+    case STEPS.COUNTRY:
+      text = `📦 *Shipping Details*\n\n💬 Send Country:`;
+      keyboard = [[Markup.button.callback('< Cancel', 'checkout:cancel')]];
+      break;
+
+    case STEPS.REVIEW_SHIPPING:
+      text = `📦 *Shipping Details*\n\n` +
+             `${buildShippingBlock(data)}\n\n` +
+             `✅ *Review your shipping details.*\n` +
+             `If everything is correct, press "Okay".`;
+      keyboard = buildReviewKeyboard();
       break;
 
     case STEPS.PAYMENT_METHOD:
       text = `💳 *Payment Method*\n\n💬 Select your currency:`;
       keyboard = [
         [Markup.button.callback('Bitcoin (BTC)', 'checkout:setpay:BTC')],
-        [Markup.button.callback('Litecoin (LTC)', 'checkout:setpay:LTC')],
-        [Markup.button.callback('< Back to Shipping', 'checkout:edit:city')]
+        [Markup.button.callback('Monero (XMR)', 'checkout:setpay:XMR')],
+        [Markup.button.callback('< Back to Shipping', 'checkout:step:review_shipping')]
       ];
       break;
 
     case STEPS.REFUND:
-      text = `💳 *Payment Method*\nCurrency:\n*${data.paymentMethod === 'BTC' ? 'Bitcoin' : 'Litecoin'}*\nRefund address:\n...\n\n✏️ SEND ME YOUR ${data.paymentMethod} REFUND ADDRESS:`;
-      keyboard = [
-        [Markup.button.callback('< Payment Method', 'checkout:step:payment_method')]
-      ];
+      const name = data.paymentMethod === 'BTC' ? 'Bitcoin' : 'Monero';
+      text = `💳 *Payment Method*\nCurrency:\n*${name}*\nRefund address:\n...\n\n✏️ SEND ME YOUR ${data.paymentMethod} REFUND ADDRESS:`;
+      keyboard = [[Markup.button.callback('< Payment Method', 'checkout:step:payment_method')]];
       break;
 
     case STEPS.SUMMARY:
       const cart = await cartService.getCartWithItems(ctx.state.user.id);
       const total = cartService.computeTotal(cart);
+      const shippingFee = 10.00;
+      const cartTotal = total + shippingFee;
       
       const productIds = ctx.session?.catalogProducts || [];
       
-      let itemsText = cart.items.map(it => {
-        let pIndex = productIds.indexOf(it.productId);
-        let link = pIndex >= 0 ? `/p${pIndex}` : `/p_${it.productId}`;
-        const label = it.variant ? it.variant.label : '1 item';
-        return `*${it.product.name}*\n${link}\n(by ${shop.vendorName})\n${label} x${it.quantity} = ${formatPrice(it.unitPrice * it.quantity)}`;
-      }).join('\n\n');
+      // Group items by product
+      const productGroups = {};
+      for (const it of cart.items) {
+        if (!productGroups[it.productId]) {
+          productGroups[it.productId] = {
+            product: it.product,
+            items: []
+          };
+        }
+        productGroups[it.productId].items.push(it);
+      }
+      
+      const itemsLines = [];
+      for (const pId in productGroups) {
+        const group = productGroups[pId];
+        const p = group.product;
+        const pIndex = productIds.indexOf(p.id);
+        const link = pIndex >= 0 ? `/p${pIndex}` : `/p_${p.id}`;
+        
+        itemsLines.push(`*${p.name.toUpperCase()}*`);
+        itemsLines.push(`${link}`);
+        itemsLines.push(`(by ${shop.vendorName})`);
+        
+        for (const it of group.items) {
+          const label = it.variant ? `(${it.variant.label})` : '1x';
+          itemsLines.push(`${label} x${it.quantity} = ${formatPrice(it.unitPrice * it.quantity)}`);
+        }
+        itemsLines.push('');
+      }
 
-      let shippingText = `Shipping:\n${shop.vendorName}—$0.00`;
+      const itemsText = itemsLines.join('\n');
+      const addressBlock = buildShippingBlock(data);
 
-      text = `🛒 *My Cart*\n\n${itemsText}\n\n${shippingText}\n\n*Cart Total: ${formatPrice(total)}*\n\n` +
-             `📦 *Shipping Details:*\n${data.shippingName}\n${data.shippingStreet}\n` +
-             (data.shippingApt !== 'n/a' ? `${data.shippingApt}\n` : '') +
-             `${data.shippingCity}\n${data.shippingCountry}\n\n` +
-             `💳 *Payment Method:*\n${data.paymentMethod} - ${data.paymentMethod === 'BTC' ? 'Bitcoin' : 'Litecoin'}\nRefund address:\n\`${data.refundAddress}\``;
+      text = `🛒 *My Cart*\n\n${itemsText}` +
+             `Shipping:\n${shop.vendorName}—${formatPrice(shippingFee)}\n\n` +
+             `*Cart Total: ${formatPrice(cartTotal)}*\n\n` +
+             `📦 *Shipping Details:*\n${addressBlock}`;
              
+      if (data.paymentMethod && data.refundAddress) {
+        const payName = data.paymentMethod === 'BTC' ? 'Bitcoin' : 'Monero';
+        text += `\n\n💳 *Payment Method:*\n${data.paymentMethod} - ${payName}\nRefund address:\n\`${data.refundAddress}\``;
+      }
+
+      // Configure summary keyboard buttons matching Image 2
+      const placeOrSelectBtn = (data.paymentMethod && data.refundAddress)
+        ? Markup.button.callback('✅ Place Order >', 'checkout:place_order')
+        : Markup.button.callback('Select Payment Method', 'checkout:step:payment_method');
+
       keyboard = [
-        [Markup.button.callback('⇐ Back', 'checkout:step:refund'), Markup.button.callback('✅ Place Order >', 'checkout:place_order')],
-        [Markup.button.callback('Add Order Notes', 'checkout:noop'), Markup.button.callback('Edit Payment Method', 'checkout:step:payment_method')],
-        [Markup.button.callback('Empty Cart', 'cart:clear'), Markup.button.callback('Edit Shipping Details', 'checkout:edit:name')],
+        [Markup.button.callback('⇌ Back', 'checkout:step:review_shipping')],
+        [Markup.button.callback('Add Order Notes', 'checkout:noop'), placeOrSelectBtn],
+        [Markup.button.callback('Empty Cart', 'cart:clear'), Markup.button.callback('Edit Shipping Details', 'checkout:step:review_shipping')],
         [Markup.button.callback('Apply Vouchers', 'checkout:noop')]
       ];
       break;
   }
 
   const opts = { parse_mode: 'Markdown', reply_markup: { inline_keyboard: keyboard } };
-  
-  // We always send a new message for a new prompt as it looks better for conversational flow,
-  // except when editing.
   await ctx.reply(text, opts);
 }
 
@@ -158,50 +202,64 @@ checkout.on('text', async (ctx) => {
   const text = ctx.message.text.trim();
 
   if (text.startsWith('/')) {
+    if (text.toLowerCase() === '/cancel') {
+      await ctx.reply('❌ Order cancelled.');
+      return ctx.scene.leave();
+    }
     await ctx.reply('Commands are ignored during checkout. Type /cancel to cancel.');
     return;
   }
 
+  const wasEditing = data.isEditing;
+
   switch (data.step) {
     case STEPS.NAME:
       data.shippingName = text;
-      data.step = STEPS.COUNTRY;
-      break;
-    case STEPS.COUNTRY:
-      data.shippingCountry = text;
-      data.step = STEPS.STREET;
+      data.step = wasEditing ? STEPS.REVIEW_SHIPPING : STEPS.STREET;
       break;
     case STEPS.STREET:
       data.shippingStreet = text;
-      data.shippingApt = data.shippingApt || 'n/a'; // Default
-      data.step = STEPS.CITY;
+      data.step = wasEditing ? STEPS.REVIEW_SHIPPING : STEPS.APT;
       break;
     case STEPS.APT:
       data.shippingApt = text;
-      data.step = STEPS.CITY;
+      data.step = wasEditing ? STEPS.REVIEW_SHIPPING : STEPS.CITY;
       break;
     case STEPS.CITY:
       data.shippingCity = text;
-      data.step = STEPS.PAYMENT_METHOD;
+      data.step = wasEditing ? STEPS.REVIEW_SHIPPING : STEPS.POSTCODE;
+      break;
+    case STEPS.POSTCODE:
+      data.shippingZip = text;
+      data.step = wasEditing ? STEPS.REVIEW_SHIPPING : STEPS.COUNTRY;
+      break;
+    case STEPS.COUNTRY:
+      data.shippingCountry = text;
+      data.step = STEPS.REVIEW_SHIPPING;
       break;
     case STEPS.REFUND:
       data.refundAddress = text;
       data.step = STEPS.SUMMARY;
       break;
     default:
-      return; // Ignore text if not in a text-input step
+      return;
+  }
+
+  if (wasEditing && data.step === STEPS.REVIEW_SHIPPING) {
+    data.isEditing = false;
   }
   
   ctx.scene.session.checkout = data;
   await renderStep(ctx);
 });
 
-// Edit specific fields
+// Edit specific fields from review keyboard
 checkout.action(/^checkout:edit:(.+)$/, async (ctx) => {
   await ctx.answerCbQuery().catch(() => {});
   const field = ctx.match[1];
   const data = ctx.scene.session.checkout;
   data.step = field;
+  data.isEditing = true;
   await renderStep(ctx);
 });
 
@@ -213,8 +271,18 @@ checkout.action(/^checkout:step:(.+)$/, async (ctx) => {
   await renderStep(ctx);
 });
 
-// Set payment method
-checkout.action(/^checkout:setpay:(BTC|LTC)$/, async (ctx) => {
+// Skip APT field
+checkout.action('checkout:skip_apt', async (ctx) => {
+  await ctx.answerCbQuery().catch(() => {});
+  const data = ctx.scene.session.checkout;
+  data.shippingApt = 'n/a';
+  data.step = data.isEditing ? STEPS.REVIEW_SHIPPING : STEPS.CITY;
+  data.isEditing = false;
+  await renderStep(ctx);
+});
+
+// Set payment method (BTC or XMR)
+checkout.action(/^checkout:setpay:(BTC|XMR)$/, async (ctx) => {
   await ctx.answerCbQuery().catch(() => {});
   const data = ctx.scene.session.checkout;
   data.paymentMethod = ctx.match[1];
@@ -222,12 +290,14 @@ checkout.action(/^checkout:setpay:(BTC|LTC)$/, async (ctx) => {
   await renderStep(ctx);
 });
 
-// Cancel
-checkout.command('cancel', async (ctx) => {
-  await ctx.reply('❌ Order cancelled.');
-  return ctx.scene.leave();
+// Restart checkout
+checkout.action('checkout:restart', async (ctx) => {
+  await ctx.answerCbQuery().catch(() => {});
+  ctx.scene.session.checkout = { step: STEPS.NAME };
+  await renderStep(ctx);
 });
 
+// Cancel checkout
 checkout.action('checkout:cancel', async (ctx) => {
   await ctx.answerCbQuery('Cancelled').catch(() => {});
   await ctx.reply('❌ Order cancelled.');
@@ -235,7 +305,7 @@ checkout.action('checkout:cancel', async (ctx) => {
 });
 
 checkout.action('checkout:noop', async (ctx) => {
-  await ctx.answerCbQuery('PGP Encryption coming soon!').catch(() => {});
+  await ctx.answerCbQuery('Feature coming soon!').catch(() => {});
 });
 
 checkout.action('cart:clear', async (ctx) => {

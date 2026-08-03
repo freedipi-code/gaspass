@@ -1,5 +1,5 @@
 const shop = require('../../shop.config');
-const { showCatalog } = require('./catalog');
+const { showHome } = require('./catalog');
 
 const HELP_TEXT = [
   '*Available commands*',
@@ -18,16 +18,16 @@ async function showHelp(ctx) {
 }
 
 function register(bot) {
-  // Le point d'entrée redirige vers le catalogue (page 0, toutes catégories)
-  bot.start((ctx) => showCatalog(ctx, 0, 'all'));
-  bot.command('menu', (ctx) => showCatalog(ctx, 0, 'all'));
+  // Le point d'entrée redirige vers la page d'accueil
+  bot.start((ctx) => showHome(ctx));
+  bot.command('menu', (ctx) => showHome(ctx));
   
-  // Rétrocompatibilité : l'ancien /shop redirige aussi vers le catalogue
-  bot.command('shop', (ctx) => showCatalog(ctx, 0, 'all'));
-  bot.action('shop', (ctx) => showCatalog(ctx, 0, 'all'));
+  // Rétrocompatibilité : l'ancien /shop redirige aussi vers l'accueil
+  bot.command('shop', (ctx) => showHome(ctx));
+  bot.action('shop', (ctx) => showHome(ctx));
   
-  // Home button action redirige vers le catalogue
-  bot.action('home', (ctx) => showCatalog(ctx, 0, 'all'));
+  // Home button action redirige vers l'accueil
+  bot.action('home', (ctx) => showHome(ctx));
   
   bot.command('help', (ctx) => showHelp(ctx));
 }
