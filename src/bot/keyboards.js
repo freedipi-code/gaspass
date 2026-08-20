@@ -37,7 +37,7 @@ function catalogKeyboard(page, totalPages, categoryFilter, subcategories, active
   const navRow = [];
   
   // Back button (goes back to home/parent)
-  navRow.push(Markup.button.callback('⇐ Back', 'home'));
+  navRow.push(Markup.button.callback('⇌ Back', 'home'));
 
   if (totalPages > 1) {
     if (page === 0) {
@@ -56,23 +56,7 @@ function catalogKeyboard(page, totalPages, categoryFilter, subcategories, active
 
   rows.push(navRow);
 
-  // Subcategory filters below the navigation row (2 per row)
-  if (subcategories && subcategories.length > 0) {
-    const subcatButtons = subcategories.map((c) => {
-      const isActive = String(c.id) === String(activeSubcategoryId);
-      let label = c.name;
-      // Shorten common terms to fit nicely
-      label = label
-        .replace(/Replica/gi, 'Rep')
-        .replace(/Disposables/gi, 'Disposables')
-        .replace(/Disposable/gi, 'Dispo')
-        .replace(/Cartridges/gi, 'Carts')
-        .replace(/Premium/gi, 'Prem');
-      const activeLabel = isActive ? `✅ ${label}` : label;
-      return Markup.button.callback(activeLabel, `catalog:cat:${c.id}`);
-    });
-    rows.push(...chunk(subcatButtons, 2));
-  }
+
 
   return Markup.inlineKeyboard(rows);
 }
@@ -84,7 +68,7 @@ function productDetailKeyboard(product, variants, productIndex, totalProducts, c
 
   // Back / Previous / Next row matching Image 5: [ ⇐ Back ] [ < Previous ] [ Next > ]
   const navRow = [];
-  navRow.push(Markup.button.callback('⇐ Back', `catalog:back:${categoryFilter || 'all'}`));
+  navRow.push(Markup.button.callback('⇌ Back', `catalog:back:${categoryFilter || 'all'}`));
   if (productIndex > 0) {
     navRow.push(Markup.button.callback('< Previous', `prodNav:${productIndex - 1}:${categoryFilter || 'all'}`));
   }

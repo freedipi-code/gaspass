@@ -31,6 +31,8 @@ function register(bot) {
   // Custom storefront deep link commands
   bot.hears('/about_qtetra', showInfo);
   bot.command('about_qtetra', showInfo);
+  bot.hears('/about_pp', showInfo);
+  bot.command('about_pp', showInfo);
 
   const pgpHandler = async (ctx) => {
     const pgpText = [
@@ -40,8 +42,40 @@ function register(bot) {
       `-----BEGIN PGP PUBLIC KEY BLOCK-----`,
       `Version: Key-ID 0x4D3F2C1B`,
       ``,
-      `mQENBF7Z... [QUEEN TETRA SHOP PGP KEY]`,
+      `mQENBF7Z... [POT PACK SHOP PGP KEY]`,
       `xsFNBF5v...`,
+      `-----END PGP PUBLIC KEY BLOCK-----`,
+      `\`\`\``
+    ].join('\n');
+    return ctx.reply(pgpText, { parse_mode: 'Markdown' });
+  };
+
+  const pgpPpHandler = async (ctx) => {
+    const pgpText = [
+      `🔐 *PotPacks PGP Public Key*`,
+      ``,
+      `\`\`\``,
+      `-----BEGIN PGP PUBLIC KEY BLOCK-----`,
+      `Version: Key-ID 0x8F7E6D5C`,
+      ``,
+      `mQENBF9b... [POTPACKS SHOP PGP KEY]`,
+      `xsFNBF5v...`,
+      `-----END PGP PUBLIC KEY BLOCK-----`,
+      `\`\`\``
+    ].join('\n');
+    return ctx.reply(pgpText, { parse_mode: 'Markdown' });
+  };
+
+  const marketPgpHandler = async (ctx) => {
+    const pgpText = [
+      `🔐 *Market PGP Public Key*`,
+      ``,
+      `\`\`\``,
+      `-----BEGIN PGP PUBLIC KEY BLOCK-----`,
+      `Version: Key-ID 0x9B8A7C6D`,
+      ``,
+      `mQENBF8a... [SI MARKET PGP KEY]`,
+      `yKFNBF4w...`,
       `-----END PGP PUBLIC KEY BLOCK-----`,
       `\`\`\``
     ].join('\n');
@@ -50,6 +84,12 @@ function register(bot) {
 
   bot.hears('/pgp_qtetra', pgpHandler);
   bot.command('pgp_qtetra', pgpHandler);
+
+  bot.hears('/pgp_pp', pgpPpHandler);
+  bot.command('pgp_pp', pgpPpHandler);
+
+  bot.hears('/market_pgp', marketPgpHandler);
+  bot.command('market_pgp', marketPgpHandler);
 }
 
 module.exports = { register };

@@ -7,10 +7,10 @@
 
 module.exports = {
   // Display name shown in welcome message header
-  name: "Queen Tetras Shop",
+  name: "Pot Pack Shop",
 
   // Vendor name shown on product pages (-- by VendorName)
-  vendorName: "QueenTetrassit",
+  vendorName: "PotpackMedia",
   vendorCommand: "/vendor",
 
   // Emoji prepended/appended to the shop name in welcome
@@ -18,7 +18,7 @@ module.exports = {
 
   // Welcome intro text (storefront style)
   welcomeText: [
-    "Welcome to Queen Tetra.",
+    "Welcome to Pot Pack Shop.",
     "",
     "All orders are shipped within 24-48hrs and traking will be provided upon request. "
     + "$10 shipping on all orders. "
@@ -43,7 +43,7 @@ module.exports = {
   ownerStatusLine: "🟢 Online",  // overridden if you want dynamic status later
 
   // Footer
-  footerLink: "https://t.me/QueenTetrassit",
+  footerLink: "https://t.me/potpackmedia",
   footerText: "Powered by SI Market",
 
   // About page command

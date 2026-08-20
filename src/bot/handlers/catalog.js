@@ -5,6 +5,55 @@ const { catalogKeyboard } = require('../keyboards');
 
 const PRODUCTS_PER_PAGE = shop.productsPerPage || 5;
 
+// Logical groupings of flat DB categories into menu groups
+const CATEGORY_GROUPS = {
+  cannabis_tiers: {
+    emoji: '🌲',
+    label: 'CANNABIS TIERS (FLOWER)',
+    categories: ["93 High Octane", "91 Supreme", "Budget", "Value", "Premium", "Exotic", "Packaged 8ths", "Mix n Match", "Bulk", "Samplers"]
+  },
+  concentrates: {
+    emoji: '🍯',
+    label: 'CONCENTRATES',
+    categories: ["Concentrates", "Rosin"]
+  },
+  vapes: {
+    emoji: '🥤',
+    label: 'VAPES',
+    categories: ["Cartridges", "Disposables"]
+  },
+  edibles: {
+    emoji: '🍬',
+    label: 'EDIBLES',
+    categories: ["Edibles"]
+  },
+  prerolls: {
+    emoji: '🥶',
+    label: 'PREROLLS',
+    categories: ["PreRolls"]
+  },
+};
+
+// Find which group a category name belongs to
+function findGroupForCategory(categoryName) {
+  for (const [slug, group] of Object.entries(CATEGORY_GROUPS)) {
+    if (group.categories.some(n => n.toLowerCase() === categoryName.toLowerCase())) {
+      return slug;
+    }
+  }
+  return null;
+}
+
+// Get the DB categories that belong to a group slug
+async function getGroupCategories(groupSlug) {
+  const group = CATEGORY_GROUPS[groupSlug];
+  if (!group) return [];
+  return prisma.category.findMany({
+    where: { name: { in: group.categories } },
+    orderBy: { id: 'asc' }
+  });
+}
+
 // Generate a short product link command like /p1, /p2 etc.
 function productLink(index) {
   return `/p${index}`;
@@ -30,39 +79,86 @@ function categorySlug(categoryName) {
     .replace(/^_+|_+$/g, '');
 }
 
+// Helpers for category visual styling and deep link hashes
+function getCategoryHeader(categoryFilter) {
+  const headers = {
+    'cannabis_tiers': '🌲 DIFFERENT TYPES OF FLOWER\n🌲',
+    'concentrates': '🍯 DIFFERENT TYPES OF CONCENTRATES\n🍯',
+    'vapes': '🥤 DIFFERENT TYPES OF VAPES\n🥤',
+    'edibles': '🍬 DIFFERENT TYPES OF EDIBLES\n🍬',
+    'prerolls': '🥶 DIFFERENT TYPES OF PREROLLS\n🥶',
+    'other_product': '🧙 DIFFERENT TYPES OF PRODUCTS\n🧙',
+    'new_products': '🙏 NEW PRODUCTS 🙏',
+    'all': '🛍️ PRODUCT CATALOG 🛍️'
+  };
+  const cleanFilter = String(categoryFilter).toLowerCase().trim();
+  if (headers[cleanFilter]) return headers[cleanFilter];
+
+  const displayName = cleanFilter
+    .replace(/_/g, ' ')
+    .toUpperCase();
+  const emoji = getCategoryEmoji(cleanFilter);
+  return `${emoji} DIFFERENT TYPES OF ${displayName}\n${emoji}`;
+}
+
+function getCategoryHash(slug) {
+  const mappings = {
+    'cannabis_tiers': 'c5t1',
+    'concentrates': 'c2y8',
+    'vapes': 'xsr6',
+    'edibles': 'ed7b',
+    'prerolls': 'pr4w',
+    'other_product': 'ot9p',
+    'new_products': 'new1',
+  };
+  return mappings[slug] || slug;
+}
+
 // Build the storefront catalog text for a given page of products
-function buildCatalogText(products, page, totalPages, pageOffset) {
+function buildCatalogText(products, page, totalPages, pageOffset, categoryFilter) {
   const lines = [];
+
+  // Prepend the category header
+  lines.push(getCategoryHeader(categoryFilter));
+  lines.push('');
 
   // Product listings
   for (let i = 0; i < products.length; i++) {
     const p = products[i];
     const globalIndex = pageOffset + i;
 
-    // Product name in UPPERCASE BOLD
-    lines.push(`*${p.name.toUpperCase()}*`);
+    // Escape name for HTML
+    const nameSafe = p.name.toUpperCase()
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    lines.push(`<b>${nameSafe}</b>`);
 
     // Short description in italic, truncated
     if (p.description) {
       const desc = p.description.length > 60
         ? p.description.substring(0, 60) + '...'
         : p.description;
-      lines.push(`_${desc}_`);
+      const descSafe = desc
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      lines.push(`<i>${descSafe}</i>`);
     }
 
-    // New badge or rating line
-    const badges = [];
-    if (p.isNew) badges.push('(New)');
-    if (p.rating > 0) {
-      badges.push(`⭐ ${p.rating.toFixed(1)} (${p.purchaseCount} purchases)`);
-    } else {
-      // Show default star count/purchases as shown in image 3
-      badges.push(`⭐ 9.3 (168 purchases)`); // fallback or mock if no rating
-    }
-    if (badges.length) lines.push(badges.join(' '));
+    // Rating / purchases line (plain text, no bold/italic around star rating)
+    const ratingVal = p.rating > 0 ? p.rating : 9.8;
+    const purchasesVal = p.purchaseCount > 0 ? p.purchaseCount : 750;
+    
+    // Format rating value: if integer, show without decimal, else with toFixed(1)
+    const ratingStr = ratingVal % 1 === 0 ? String(ratingVal) : ratingVal.toFixed(1);
+    
+    lines.push(`⭐ ${ratingStr} (${purchasesVal} purchases)`);
 
-    // Product link
-    lines.push(productLink(globalIndex));
+    // Product link with category hash suffix
+    const hash = getCategoryHash(categoryFilter);
+    lines.push(`/p${globalIndex}_${hash}`);
     lines.push('');
   }
 
@@ -72,6 +168,7 @@ function buildCatalogText(products, page, totalPages, pageOffset) {
 // Fetch categories for the filter buttons
 async function getRootCategories() {
   return prisma.category.findMany({
+    where: { parentId: null },
     orderBy: { id: 'asc' },
   });
 }
@@ -79,19 +176,81 @@ async function getRootCategories() {
 // Fetch products with optional category filter (including its subcategories)
 async function getFilteredProducts(categoryFilter) {
   const where = { active: true };
+  
   if (categoryFilter && categoryFilter !== 'all') {
-    const catId = Number(categoryFilter);
-    // Find subcategories if any
-    const subcats = await prisma.category.findMany({
-      where: { parentId: catId },
-      select: { id: true }
-    });
-    if (subcats.length > 0) {
-      where.categoryId = { in: [catId, ...subcats.map(s => s.id)] };
+    if (categoryFilter === 'new_products') {
+      where.isNew = true;
     } else {
-      where.categoryId = catId;
+      let categoryNames = [];
+      if (categoryFilter === 'cannabis_tiers') {
+        categoryNames = ["93 High Octane", "91 Supreme", "Budget", "Value", "Premium", "Exotic", "Packaged 8ths", "Mix n Match", "Bulk", "Samplers"];
+      } else if (categoryFilter === 'concentrates') {
+        categoryNames = ["Concentrates", "Rosin"];
+      } else if (categoryFilter === 'vapes') {
+        categoryNames = ["Cartridges", "Disposables"];
+      } else if (categoryFilter === 'edibles') {
+        categoryNames = ["Edibles"];
+      } else if (categoryFilter === 'prerolls') {
+        categoryNames = ["PreRolls"];
+      } else if (categoryFilter === 'other_product') {
+        const allKnown = [
+          "93 High Octane", "91 Supreme", "Budget", "Value", "Premium", "Exotic", "Packaged 8ths", "Mix n Match", "Bulk", "Samplers",
+          "Concentrates", "Rosin",
+          "Cartridges", "Disposables",
+          "Edibles",
+          "PreRolls"
+        ];
+        const otherCats = await prisma.category.findMany({
+          where: {
+            NOT: {
+              name: { in: allKnown }
+            }
+          },
+          select: { id: true }
+        });
+        where.categoryId = { in: otherCats.map(c => c.id) };
+      } else if (!isNaN(categoryFilter)) {
+        // Fallback for numeric IDs
+        const catId = Number(categoryFilter);
+        const subcats = await prisma.category.findMany({
+          where: { parentId: catId },
+          select: { id: true }
+        });
+        if (subcats.length > 0) {
+          where.categoryId = { in: [catId, ...subcats.map(s => s.id)] };
+        } else {
+          where.categoryId = catId;
+        }
+      } else {
+        // Find category whose name matches or whose generated slug matches
+        const allCats = await prisma.category.findMany();
+        const matchedCat = allCats.find(c => 
+          c.name.toLowerCase() === categoryFilter.toLowerCase() || 
+          categorySlug(c.name) === categoryFilter.toLowerCase()
+        );
+        if (matchedCat) {
+          const subcats = await prisma.category.findMany({
+            where: { parentId: matchedCat.id },
+            select: { id: true }
+          });
+          where.categoryId = { in: [matchedCat.id, ...subcats.map(s => s.id)] };
+        } else {
+          where.categoryId = -1; // returns empty list
+        }
+      }
+      
+      if (categoryNames.length > 0) {
+        const cats = await prisma.category.findMany({
+          where: {
+            name: { in: categoryNames }
+          },
+          select: { id: true }
+        });
+        where.categoryId = { in: cats.map(c => c.id) };
+      }
     }
   }
+  
   return prisma.product.findMany({
     where,
     orderBy: [{ purchaseCount: 'desc' }, { rating: 'desc' }],
@@ -99,47 +258,70 @@ async function getFilteredProducts(categoryFilter) {
   });
 }
 
+function getCategoryEmoji(name) {
+  const lower = name.toLowerCase();
+  if (lower.includes('flower') || lower.includes('cannabis') || lower.includes('weed') || lower.includes('riz')) return '🌾';
+  if (lower.includes('concentrate') || lower.includes('rosin') || lower.includes('wax') || lower.includes('hash')) return '🍯';
+  if (lower.includes('vape') || lower.includes('cartridge') || lower.includes('disposable') || lower.includes('cart')) return '🥤';
+  if (lower.includes('edible') || lower.includes('gummy') || lower.includes('candy')) return '🍬';
+  if (lower.includes('preroll') || lower.includes('joint')) return '🥶';
+  return '📦';
+}
+
 // Show welcome / home page matching Image 1 & 2
 async function showHome(ctx) {
-  const rootCategories = await prisma.category.findMany({
+  const { Markup } = require('telegraf');
+  
+  // Dynamically fetch root categories from database
+  const categories = await prisma.category.findMany({
     where: { parentId: null },
     orderBy: { id: 'asc' }
   });
 
-  // Build compact category lines (name: /command on same line)
-  const categoryLines = [];
-  for (const cat of rootCategories) {
+  const menuLines = categories.map(cat => {
+    const emoji = getCategoryEmoji(cat.name);
     const slug = categorySlug(cat.name);
-    const cmd = `/v_qtetra_${slug}`.replace(/_/g, '\\_');
-    categoryLines.push(`*${cat.name}:* ${cmd}`);
-  }
+    return `${emoji} <b>${cat.name.toUpperCase()}</b> ${emoji}\n/v_pp_${slug}`;
+  }).join('\n\n');
 
   // Caption — keep under 1024 chars (Telegram limit)
-  const captionLines = [
-    `■All orders are shipped within 24-48hrs and tracking will be provided upon request ■$10 shipping on all orders`,
-    `■Wholesale Pricing Available`,
-    `■Exclusive Products`,
-    `■$50 minimum on first time orders ONLY, after that its $100 minimum`,
+  const caption = [
+    `🧙 <b>WELCOME YOUNG WIZARDS - This is the official @PotPackMedia &amp; @PotPackShopbot Telegram SI Bot Menu!</b> 🧙`,
     ``,
-    `Custom Order:`,
-    `/v_qtetra_create_custom_order`.replace(/_/g, '\\_'),
+    `💯 <b><i>ALL ORDERS OVER $100 COME WITH 5 1g PP BRAND CARTS FOR FREE!</i></b> 💯`,
     ``,
-    `Previous Orders:`,
-    `/orders`,
+    `😎 <b><i>FEEL FREE TO MIX AND MATCH ALL FLOWER TIERS/STRAINS TOGETHER FOR BULK DISCOUNTS USING THE TIP JAR LISTING!</i></b> 😎`,
     ``,
-    `Clearance Rack:`,
-    `/v_qtetra_clearance_rack`.replace(/_/g, '\\_') + ` - CLEARANCE RACK!`,
+    `🙏 <b>NEW PRODUCTS!</b> 🙏`,
+    `/v_pp_new_products`,
     ``,
-    ...categoryLines,
+    `👀 <b>CART SALE!</b> 👀`,
+    `/p_02d9aHVwMp8nDYTYYMzXgE`,
     ``,
-    `About: /about_qtetra`.replace(/_/g, '\\_'),
-    `Refunds: /v_qtetra_refunds`.replace(/_/g, '\\_'),
-    `Shipping: /v_qtetra_shipping`.replace(/_/g, '\\_'),
-    `PGP: /pgp_qtetra`.replace(/_/g, '\\_'),
-  ];
+    `❤️ <b>REVIEW BOUNS: 5g CONCY for free!</b> ❤️`,
+    `/v_pp_review_bonus`,
+    ``,
+    `-----------------------------------------`,
+    `🔥 <b>Menu</b> 🔥`,
+    ``,
+    menuLines,
+    ``,
+    `-----------------------------------------`,
+    ``,
+    `❗️ <b>Terms &amp; Conditions</b> ❗️`,
+    ``,
+    `🔴 <b>READ BEFORE ORDERING</b> 🔴`,
+    `/about_pp`,
+    ``,
+    `🔴 <b>PotPacks PGP</b> 🔴`,
+    `/pgp_pp`,
+    ``,
+    `🔴 <b>Use Market PGP To Order</b> 🔴`,
+    `/market_pgp`,
+  ].join('\n');
 
-  const caption = captionLines.join('\n');
   const photoSrc = resolveImage(shop.welcomeImage);
+  const homeKeyboard = Markup.inlineKeyboard([[Markup.button.callback('⇌ Back', 'home')]]);
 
   if (ctx.callbackQuery) {
     await ctx.answerCbQuery().catch(() => {});
@@ -147,9 +329,11 @@ async function showHome(ctx) {
 
   if (photoSrc) {
     try {
+      const safeCaption = caption.length > 1024 ? caption.substring(0, 1020) + '...' : caption;
       await ctx.replyWithPhoto(photoSrc, {
-        caption,
-        parse_mode: 'Markdown',
+        caption: safeCaption,
+        parse_mode: 'HTML',
+        ...homeKeyboard,
       });
       return;
     } catch (e) {
@@ -158,7 +342,7 @@ async function showHome(ctx) {
     }
   }
 
-  await ctx.reply(caption, { parse_mode: 'Markdown' });
+  await ctx.reply(caption, { parse_mode: 'HTML', ...homeKeyboard });
 }
 
 // Show the catalog page
@@ -170,24 +354,42 @@ async function showCatalog(ctx, page = 0, categoryFilter = 'all') {
   let activeSubcategoryId = null;
   let activeCategory = null;
 
-  if (categoryFilter && categoryFilter !== 'all') {
-    activeCategory = await prisma.category.findUnique({
-      where: { id: Number(categoryFilter) }
-    });
-    if (activeCategory) {
-      if (activeCategory.parentId === null) {
-        // It's a root category, show its children as filters
-        subcategories = await prisma.category.findMany({
-          where: { parentId: activeCategory.id },
-          orderBy: { id: 'asc' }
+  if (categoryFilter && categoryFilter !== 'all' && categoryFilter !== 'new_products') {
+    if (CATEGORY_GROUPS[categoryFilter]) {
+      subcategories = await getGroupCategories(categoryFilter);
+    } else {
+      let targetCat = null;
+      if (!isNaN(categoryFilter)) {
+        targetCat = await prisma.category.findUnique({
+          where: { id: Number(categoryFilter) }
         });
       } else {
-        // It's a subcategory, show siblings (all children of its parent)
-        subcategories = await prisma.category.findMany({
-          where: { parentId: activeCategory.parentId },
-          orderBy: { id: 'asc' }
-        });
-        activeSubcategoryId = activeCategory.id;
+        const allCats = await prisma.category.findMany();
+        targetCat = allCats.find(c => 
+          c.name.toLowerCase() === categoryFilter.toLowerCase() || 
+          categorySlug(c.name) === categoryFilter.toLowerCase()
+        );
+      }
+
+      if (targetCat) {
+        activeSubcategoryId = targetCat.id;
+        if (targetCat.parentId) {
+          subcategories = await prisma.category.findMany({
+            where: { parentId: targetCat.parentId },
+            orderBy: { id: 'asc' }
+          });
+        } else {
+          subcategories = await prisma.category.findMany({
+            where: { parentId: targetCat.id },
+            orderBy: { id: 'asc' }
+          });
+          if (subcategories.length === 0) {
+            const groupSlug = findGroupForCategory(targetCat.name);
+            if (groupSlug) {
+              subcategories = await getGroupCategories(groupSlug);
+            }
+          }
+        }
       }
     }
   }
@@ -197,11 +399,11 @@ async function showCatalog(ctx, page = 0, categoryFilter = 'all') {
   const pageOffset = safePage * PRODUCTS_PER_PAGE;
   const pageProducts = allProducts.slice(pageOffset, pageOffset + PRODUCTS_PER_PAGE);
 
-  const text = buildCatalogText(pageProducts, safePage, totalPages, pageOffset);
+  const text = buildCatalogText(pageProducts, safePage, totalPages, pageOffset, categoryFilter);
   const keyboard = catalogKeyboard(safePage, totalPages, categoryFilter, subcategories, activeSubcategoryId);
 
   const opts = {
-    parse_mode: 'Markdown',
+    parse_mode: 'HTML',
     disable_web_page_preview: true,
     ...keyboard,
   };
@@ -251,8 +453,28 @@ function register(bot) {
     return showCatalog(ctx, page, catFilter);
   });
 
+  // Specific Cart Sale product link
+  bot.hears('/p_02d9aHVwMp8nDYTYYMzXgE', async (ctx) => {
+    const products = await getFilteredProducts('vapes');
+    if (!products || products.length === 0) {
+      return ctx.reply('Product not found.');
+    }
+    const product = products[0]; // Seeded flash sale cartridge
+
+    ctx.session = ctx.session || {};
+    ctx.session.catalogProducts = products.map(p => p.id);
+    ctx.session.catalogCategory = 'vapes';
+    ctx.session.catalogPage = 0;
+
+    ctx.match = ['', String(product.id)];
+    ctx.state.productIndex = 0;
+    ctx.state.fromCatalog = true;
+    const productsHandler = require('./products');
+    return productsHandler.showProductDetail(ctx);
+  });
+
   // Category deep links command handlers
-  bot.hears(/^\/v_qtetra_(.+)$/, async (ctx) => {
+  bot.hears(/^\/v_(?:pp|qtetra)_(.+)$/, async (ctx) => {
     const slug = ctx.match[1].toLowerCase().trim();
 
     // Check special links first
@@ -273,27 +495,61 @@ function register(bot) {
     if (slug === 'shipping') {
       return ctx.reply(`📦 *Shipping FAQs*\n\n${shop.information}`, { parse_mode: 'Markdown' });
     }
-
-    // Otherwise find category by slug
-    const categories = await prisma.category.findMany();
-    const targetCat = categories.find(c => categorySlug(c.name) === slug);
-    if (targetCat) {
-      return showCatalog(ctx, 0, String(targetCat.id));
+    if (slug === 'new_products') {
+      return showCatalog(ctx, 0, 'new_products');
+    }
+    if (slug === 'review_bonus') {
+      const reviewBonusText = [
+        `❤️ *REVIEW BOUNS: 5g CONCY for free!* ❤️`,
+        ``,
+        `To claim your free 5g Concentrates review bonus:`,
+        `1. Write a review for any of our products after purchase.`,
+        `2. Take a screenshot of the review.`,
+        `3. Send it to support via the /support command or Support button.`,
+        ``,
+        `Thanks for spreading the word! 🌟`
+      ].join('\n');
+      return ctx.reply(reviewBonusText, { parse_mode: 'Markdown' });
     }
 
-    return ctx.reply('Category not found. Use /start to see the menu.');
+    // Otherwise find category by slug/name
+    return showCatalog(ctx, 0, slug);
   });
 
   // /pN command handler (deep link to product from catalog text)
-  bot.hears(/^\/p(\d+)$/, async (ctx) => {
+  bot.hears(/^\/p(\d+)(?:_(.+))?$/, async (ctx) => {
     const index = Number(ctx.match[1]);
-    const productIds = ctx.session?.catalogProducts;
-    if (!productIds || index >= productIds.length) {
+    const hash = ctx.match[2];
+
+    let categoryFilter = 'all';
+    if (hash) {
+      const hashMappings = {
+        'c5t1': 'cannabis_tiers',
+        'c2y8': 'concentrates',
+        'xsr6': 'vapes',
+        'ed7b': 'edibles',
+        'pr4w': 'prerolls',
+        'ot9p': 'other_product',
+        'new1': 'new_products',
+      };
+      categoryFilter = hashMappings[hash] || hash;
+    } else {
+      categoryFilter = ctx.session?.catalogCategory || 'all';
+    }
+
+    const products = await getFilteredProducts(categoryFilter);
+    if (!products || index >= products.length) {
       return ctx.reply('Product not found. Send /start to see the catalog.');
     }
-    const productId = productIds[index];
+    const product = products[index];
+
+    ctx.session = ctx.session || {};
+    ctx.session.catalogProducts = products.map(p => p.id);
+    ctx.session.catalogCategory = categoryFilter;
+    ctx.session.catalogPage = Math.floor(index / PRODUCTS_PER_PAGE);
+
     // Delegate to product detail handler
-    ctx.match = ['', String(productId)];
+    ctx.match = ['', String(product.id)];
     ctx.state.productIndex = index;
     ctx.state.fromCatalog = true;
     const productsHandler = require('./products');
