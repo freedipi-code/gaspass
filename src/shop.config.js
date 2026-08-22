@@ -16,16 +16,8 @@ module.exports = {
   // Emoji prepended/appended to the shop name in welcome
   emoji: "",
 
-  // Welcome intro text (storefront style)
-  welcomeText: [
-    "Welcome to Pot Pack Shop.",
-    "",
-    "All orders are shipped within 24-48hrs and traking will be provided upon request. "
-    + "$10 shipping on all orders. "
-    + "Wholesale pricing available. "
-    + "Exclusive Products."
-    + "$50 minimum on first time orders ONLY, after that its $100 minimum.",
-  ].join("\n"),
+  // Short sentence displayed above the products in the welcome photo caption
+  welcomeText: "We're open! Flower, Concentrates and Mushrooms!",
 
   // Shipping policy line (1-2 short lines max)
   shippingLine: "🌍 Worldwide Shipping",
@@ -50,7 +42,7 @@ module.exports = {
   aboutCommand: "/info",
 
   // Welcome cover image (path to local file OR public URL OR empty for text-only)
-  welcomeImage: "images/00.jpeg",
+  welcomeImage: "images/willshatner-welcome.jpeg",
 
   // Currency symbol
   currency: "$",

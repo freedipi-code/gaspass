@@ -114,12 +114,21 @@ function getCategoryHash(slug) {
   return mappings[slug] || slug;
 }
 
-// Build the storefront catalog text for a given page of products
-function buildCatalogText(products, page, totalPages, pageOffset, categoryFilter) {
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+// Build the storefront catalog text for a given page of products.
+// `headerText` lets the first page use the shop's welcome sentence while
+// keeping exactly the same product list and links as the regular catalog.
+function buildCatalogText(products, page, totalPages, pageOffset, categoryFilter, headerText = null) {
   const lines = [];
 
   // Prepend the category header
-  lines.push(getCategoryHeader(categoryFilter));
+  lines.push(headerText ? escapeHtml(headerText) : getCategoryHeader(categoryFilter));
   lines.push('');
 
   // Product listings
@@ -128,10 +137,7 @@ function buildCatalogText(products, page, totalPages, pageOffset, categoryFilter
     const globalIndex = pageOffset + i;
 
     // Escape name for HTML
-    const nameSafe = p.name.toUpperCase()
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+    const nameSafe = escapeHtml(p.name.toUpperCase());
 
     lines.push(`<b>${nameSafe}</b>`);
 
@@ -140,10 +146,7 @@ function buildCatalogText(products, page, totalPages, pageOffset, categoryFilter
       const desc = p.description.length > 60
         ? p.description.substring(0, 60) + '...'
         : p.description;
-      const descSafe = desc
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+      const descSafe = escapeHtml(desc);
       lines.push(`<i>${descSafe}</i>`);
     }
 
@@ -161,6 +164,22 @@ function buildCatalogText(products, page, totalPages, pageOffset, categoryFilter
     lines.push(`/p${globalIndex}_${hash}`);
     lines.push('');
   }
+
+  return lines.join('\n');
+}
+
+function buildCompactCatalogText(products, pageOffset, categoryFilter, headerText) {
+  const lines = [escapeHtml(headerText), ''];
+  const hash = getCategoryHash(categoryFilter);
+
+  products.forEach((product, index) => {
+    const shortName = product.name.length > 100
+      ? `${product.name.substring(0, 100)}...`
+      : product.name;
+    lines.push(`<b>${escapeHtml(shortName.toUpperCase())}</b>`);
+    lines.push(`/p${pageOffset + index}_${hash}`);
+    lines.push('');
+  });
 
   return lines.join('\n');
 }
@@ -268,60 +287,28 @@ function getCategoryEmoji(name) {
   return '📦';
 }
 
-// Show welcome / home page matching Image 1 & 2
+// Show the welcome image and immediately list the first products below it.
 async function showHome(ctx) {
-  const { Markup } = require('telegraf');
-  
-  // Dynamically fetch root categories from database
-  const categories = await prisma.category.findMany({
-    where: { parentId: null },
-    orderBy: { id: 'asc' }
-  });
+  const allProducts = await getFilteredProducts('all');
+  const totalPages = Math.max(1, Math.ceil(allProducts.length / PRODUCTS_PER_PAGE));
+  const pageProducts = allProducts.slice(0, PRODUCTS_PER_PAGE);
+  let caption = pageProducts.length > 0
+    ? buildCatalogText(pageProducts, 0, totalPages, 0, 'all', shop.welcomeText)
+    : `${escapeHtml(shop.welcomeText)}\n\nNo products available right now.`;
 
-  const menuLines = categories.map(cat => {
-    const emoji = getCategoryEmoji(cat.name);
-    const slug = categorySlug(cat.name);
-    return `${emoji} <b>${cat.name.toUpperCase()}</b> ${emoji}\n/v_pp_${slug}`;
-  }).join('\n\n');
-
-  // Caption — keep under 1024 chars (Telegram limit)
-  const caption = [
-    `🧙 <b>WELCOME YOUNG WIZARDS - This is the official @PotPackMedia &amp; @PotPackShopbot Telegram SI Bot Menu!</b> 🧙`,
-    ``,
-    `💯 <b><i>ALL ORDERS OVER $100 COME WITH 5 1g PP BRAND CARTS FOR FREE!</i></b> 💯`,
-    ``,
-    `😎 <b><i>FEEL FREE TO MIX AND MATCH ALL FLOWER TIERS/STRAINS TOGETHER FOR BULK DISCOUNTS USING THE TIP JAR LISTING!</i></b> 😎`,
-    ``,
-    `🙏 <b>NEW PRODUCTS!</b> 🙏`,
-    `/v_pp_new_products`,
-    ``,
-    `👀 <b>CART SALE!</b> 👀`,
-    `/p_02d9aHVwMp8nDYTYYMzXgE`,
-    ``,
-    `❤️ <b>REVIEW BOUNS: 5g CONCY for free!</b> ❤️`,
-    `/v_pp_review_bonus`,
-    ``,
-    `-----------------------------------------`,
-    `🔥 <b>Menu</b> 🔥`,
-    ``,
-    menuLines,
-    ``,
-    `-----------------------------------------`,
-    ``,
-    `❗️ <b>Terms &amp; Conditions</b> ❗️`,
-    ``,
-    `🔴 <b>READ BEFORE ORDERING</b> 🔴`,
-    `/about_pp`,
-    ``,
-    `🔴 <b>PotPacks PGP</b> 🔴`,
-    `/pgp_pp`,
-    ``,
-    `🔴 <b>Use Market PGP To Order</b> 🔴`,
-    `/market_pgp`,
-  ].join('\n');
+  // Telegram limits photo captions to 1,024 characters. Keep every product
+  // link visible and fall back to a compact list instead of cutting HTML.
+  if (caption.length > 1024) {
+    caption = buildCompactCatalogText(pageProducts, 0, 'all', shop.welcomeText);
+  }
 
   const photoSrc = resolveImage(shop.welcomeImage);
-  const homeKeyboard = Markup.inlineKeyboard([[Markup.button.callback('⇌ Back', 'home')]]);
+  const keyboard = catalogKeyboard(0, totalPages, 'all', [], null);
+
+  ctx.session = ctx.session || {};
+  ctx.session.catalogProducts = allProducts.map((product) => product.id);
+  ctx.session.catalogCategory = 'all';
+  ctx.session.catalogPage = 0;
 
   if (ctx.callbackQuery) {
     await ctx.answerCbQuery().catch(() => {});
@@ -329,11 +316,10 @@ async function showHome(ctx) {
 
   if (photoSrc) {
     try {
-      const safeCaption = caption.length > 1024 ? caption.substring(0, 1020) + '...' : caption;
       await ctx.replyWithPhoto(photoSrc, {
-        caption: safeCaption,
+        caption,
         parse_mode: 'HTML',
-        ...homeKeyboard,
+        ...keyboard,
       });
       return;
     } catch (e) {
@@ -342,7 +328,7 @@ async function showHome(ctx) {
     }
   }
 
-  await ctx.reply(caption, { parse_mode: 'HTML', ...homeKeyboard });
+  await ctx.reply(caption, { parse_mode: 'HTML', ...keyboard });
 }
 
 // Show the catalog page
