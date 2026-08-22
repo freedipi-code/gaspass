@@ -120,13 +120,13 @@ async function addVariantToCart(ctx) {
   
   try {
     await cartService.addVariantItem(ctx.state.user.id, productId, variantId, 1);
-    await ctx.answerCbQuery(`✅ Added to cart`);
+    await ctx.answerCbQuery(`✅ Added to cart`).catch(() => {});
     
     // Refresh product view to update the "This product is in /cart" text
     ctx.match[1] = String(productId); // Setup for showProductDetail
     await showProductDetail(ctx);
   } catch (e) {
-    await ctx.answerCbQuery(e.message || 'Could not add', { show_alert: true });
+    await ctx.answerCbQuery(e.message || 'Could not add', { show_alert: true }).catch(() => {});
   }
 }
 
@@ -135,12 +135,12 @@ async function addToCart(ctx) {
   const productId = Number(ctx.match[1]);
   try {
     await cartService.addItem(ctx.state.user.id, productId, 1);
-    await ctx.answerCbQuery(`✅ Added to cart`);
+    await ctx.answerCbQuery(`✅ Added to cart`).catch(() => {});
     
     ctx.match[1] = String(productId);
     await showProductDetail(ctx);
   } catch (e) {
-    await ctx.answerCbQuery(e.message || 'Could not add', { show_alert: true });
+    await ctx.answerCbQuery(e.message || 'Could not add', { show_alert: true }).catch(() => {});
   }
 }
 
