@@ -11,12 +11,21 @@ async function createOrderFromCart(userId, orderData) {
   const cart = await cartService.getCartWithItems(userId);
   if (!cart.items.length) throw new Error('Cart empty');
 
-  // Skip stock check since we removed stock from variant for now
-  // We just assume stock is infinite or managed globally
-  // Wait, stock is on the Product. Let's check Product stock.
-  for (const it of cart.items) {
-    if (it.quantity > it.product.stock) {
-      throw new Error(`Insufficient stock for ${it.product.name} (Max ${it.product.stock})`);
+  // A cart can contain several variants of the same product. Aggregate their
+  // quantities for an accurate stock check and one update per product.
+  const quantitiesByProduct = new Map();
+  for (const item of cart.items) {
+    quantitiesByProduct.set(
+      item.productId,
+      (quantitiesByProduct.get(item.productId) || 0) + item.quantity
+    );
+  }
+
+  // Stock is managed globally on Product rather than on each variant.
+  for (const [productId, quantity] of quantitiesByProduct) {
+    const item = cart.items.find((cartItem) => cartItem.productId === productId);
+    if (quantity > item.product.stock) {
+      throw new Error(`Insufficient stock for ${item.product.name} (Max ${item.product.stock})`);
     }
   }
 
@@ -53,12 +62,12 @@ async function createOrderFromCart(userId, orderData) {
     });
 
     // Décrémente le stock du produit et augmente purchaseCount
-    for (const it of cart.items) {
+    for (const [productId, quantity] of quantitiesByProduct) {
       await tx.product.update({
-        where: { id: it.productId },
+        where: { id: productId },
         data: { 
-          stock: { decrement: it.quantity },
-          purchaseCount: { increment: it.quantity }
+          stock: { decrement: quantity },
+          purchaseCount: { increment: quantity }
         },
       });
     }
@@ -67,6 +76,11 @@ async function createOrderFromCart(userId, orderData) {
     await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
     return created;
+  }, {
+    // The remote PostgreSQL proxy has noticeable latency. Prisma's default
+    // five-second interactive transaction timeout is too short for checkout.
+    maxWait: 30_000,
+    timeout: 60_000,
   });
 
   return order;

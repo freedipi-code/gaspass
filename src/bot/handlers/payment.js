@@ -19,15 +19,21 @@ function register(bot) {
       return ctx.scene?.leave();
     }
 
+    // Acknowledge the Telegram callback before the remote database work. A
+    // callback can no longer be answered after Telegram's short timeout.
+    await ctx.answerCbQuery('Creating order...').catch(() => {});
+
     let order;
     try {
       order = await orderService.createOrderFromCart(ctx.state.user.id, data);
     } catch (e) {
-      await ctx.answerCbQuery(e.message, { show_alert: true });
+      console.error('Failed to create order:', e);
+      const knownMessage = e.message === 'Cart empty' || e.message?.startsWith('Insufficient stock')
+        ? e.message
+        : 'Unable to create the order right now. Please try again in a moment.';
+      await ctx.reply(`⚠️ ${knownMessage}`).catch(() => {});
       return;
     }
-
-    await ctx.answerCbQuery('Order created ✅').catch(() => {});
 
     // Calculate crypto amount
     let cryptoAmount = '...';
