@@ -108,6 +108,14 @@ function computeTotal(cart) {
   return cart.items.reduce((sum, it) => sum + it.unitPrice * it.quantity, 0);
 }
 
+async function getSummary(userId) {
+  const cart = await getCartWithItems(userId);
+  return {
+    quantity: cart.items.reduce((sum, item) => sum + item.quantity, 0),
+    total: computeTotal(cart),
+  };
+}
+
 module.exports = {
   getOrCreateCart,
   getCartWithItems,
@@ -117,4 +125,5 @@ module.exports = {
   incrementItem,
   clear,
   computeTotal,
+  getSummary,
 };

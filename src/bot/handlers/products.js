@@ -1,51 +1,52 @@
-const { Markup } = require('telegraf');
 const prisma = require('../../db/client');
 const cartService = require('../../services/cart.service');
 const { resolveImage, rememberTelegramPhoto } = require('../../utils/image');
 const { isMessageNotModifiedError } = require('../../utils/telegram');
-const shop = require('../../shop.config');
-const { productDetailKeyboard, starsVisual, formatPrice } = require('../keyboards');
+const { formatPrice, productDetailKeyboard } = require('../keyboards');
 
-// ── Product Detail View ──
-
-function buildProductCaption(product, index, total) {
-  const idxStr = total > 0 ? ` (${index + 1}/${total})` : '';
-  return `*${product.name}*${idxStr}\n\n${product.description || ''}`;
+function escapeHtml(value) {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
 }
 
-// Exported so catalog.js can call it directly
-async function showProductDetail(ctx) {
-  // If called from a regex match or directly
-  const productId = Number(ctx.match[1] || ctx.match[2]); 
-  
-  // Support for product index navigation (Next >)
-  let pId = productId;
-  let pIndex = ctx.state.productIndex;
-  
-  const productIds = ctx.session?.catalogProducts || [];
-  const catFilter = ctx.session?.catalogCategory || 'all';
-  
-  // If it's a prodNav action
-  if (ctx.match && ctx.match[0].startsWith('prodNav:')) {
-    pIndex = Number(ctx.match[1]);
-    if (pIndex >= 0 && pIndex < productIds.length) {
-      pId = productIds[pIndex];
-    } else {
-      await ctx.answerCbQuery('End of list').catch(() => {});
-      return;
-    }
-  }
+function truncate(value, maxLength) {
+  const text = String(value || '').trim();
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 1).trimEnd()}…`;
+}
 
-  // Find product index if we have ID but no index
-  if (pIndex === undefined && productIds.length) {
-    pIndex = productIds.indexOf(pId);
-  }
-  
-  const totalProducts = productIds.length;
+function buildProductCaption(product, variants, selectedVariant) {
+  const pricing = variants.length
+    ? variants.map((variant) => `• ${escapeHtml(variant.label)}: ${formatPrice(variant.price)}`)
+    : [`• 1 unit: ${formatPrice(product.price)}`];
+  const selectionLabel = selectedVariant?.label || '1 unit';
+  const selectionPrice = selectedVariant?.price ?? product.price;
+  const descriptionLimit = Math.max(
+    120,
+    Math.min(520, 820 - product.name.length - pricing.join('\n').length),
+  );
 
+  return [
+    `<b>${escapeHtml(product.name)}</b>`,
+    '',
+    `<b>📦 Stock:</b> ${product.stock > 0 ? '🟢' : '🔴'}`,
+    '',
+    '<b>📝 Description:</b>',
+    escapeHtml(truncate(product.description || 'No description available.', descriptionLimit)),
+    '',
+    '<b>🏷️ Bulk Pricing:</b>',
+    ...pricing,
+    '',
+    `<b>🛒 Current Selection:</b> ${escapeHtml(selectionLabel)} = ${formatPrice(selectionPrice)}`,
+  ].join('\n');
+}
+
+async function renderProduct(ctx, productId, notice = '') {
   const product = await prisma.product.findUnique({
-    where: { id: pId },
-    include: { variants: { orderBy: { sortOrder: 'asc' } }, _count: { select: { reviews: true } } },
+    where: { id: Number(productId) },
+    include: { variants: { orderBy: { sortOrder: 'asc' } } },
   });
 
   if (!product || !product.active) {
@@ -54,89 +55,105 @@ async function showProductDetail(ctx) {
     return;
   }
 
-  if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
+  ctx.session = ctx.session || {};
+  ctx.session.selectedVariants = ctx.session.selectedVariants || {};
+  let selectedVariantId = Number(ctx.session.selectedVariants[product.id]);
+  if (!product.variants.some((variant) => variant.id === selectedVariantId)) {
+    selectedVariantId = product.variants[0]?.id || null;
+    if (selectedVariantId) ctx.session.selectedVariants[product.id] = selectedVariantId;
+  }
 
-  const caption = buildProductCaption(product, pIndex, totalProducts);
-  const keyboard = productDetailKeyboard(product, product.variants, pIndex, totalProducts, catFilter);
-
-  const opts = {
-    parse_mode: 'Markdown',
-    ...keyboard,
-  };
-
+  const selectedVariant = product.variants.find((variant) => variant.id === selectedVariantId);
+  const summary = await cartService.getSummary(ctx.state.user.id);
+  const caption = buildProductCaption(product, product.variants, selectedVariant);
+  const keyboard = productDetailKeyboard(
+    product,
+    product.variants,
+    selectedVariantId,
+    summary,
+    ctx.session.catalogCategory,
+  );
+  const options = { parse_mode: 'HTML', ...keyboard };
   const photoSrc = resolveImage(product.image);
+
+  if (ctx.callbackQuery) await ctx.answerCbQuery(notice).catch(() => {});
 
   try {
     if (photoSrc) {
       if (ctx.callbackQuery?.message?.photo) {
         const edited = await ctx.editMessageMedia(
-          { type: 'photo', media: photoSrc, caption: caption, parse_mode: 'Markdown' },
-          opts
+          { type: 'photo', media: photoSrc, caption, parse_mode: 'HTML' },
+          options,
         );
         rememberTelegramPhoto(product.image, edited);
-      } else {
-        const sent = await ctx.replyWithPhoto(photoSrc, { caption, ...opts });
-        rememberTelegramPhoto(product.image, sent);
+        return;
       }
-    } else {
-      if (ctx.callbackQuery?.message?.photo) {
-        // Can't edit a photo to text directly without deleting, just reply
-        await ctx.deleteMessage().catch(() => {});
-        await ctx.reply(caption, opts);
-      } else if (ctx.callbackQuery) {
-        await ctx.editMessageText(caption, opts);
-      } else {
-        await ctx.reply(caption, opts);
-      }
+      if (ctx.callbackQuery) await ctx.deleteMessage().catch(() => {});
+      const sent = await ctx.replyWithPhoto(photoSrc, { caption, ...options });
+      rememberTelegramPhoto(product.image, sent);
+      return;
     }
-  } catch (e) {
-    if (isMessageNotModifiedError(e)) return;
-    console.error('Error showing product:', e.message);
+
+    if (ctx.callbackQuery?.message?.photo) {
+      await ctx.deleteMessage().catch(() => {});
+      await ctx.reply(caption, options);
+    } else if (ctx.callbackQuery) {
+      await ctx.editMessageText(caption, options);
+    } else {
+      await ctx.reply(caption, options);
+    }
+  } catch (error) {
+    if (isMessageNotModifiedError(error)) return;
+    console.error('Product rendering failed:', error.message);
+    await ctx.reply(caption, options).catch(() => {});
   }
 }
 
-async function addVariantToCart(ctx) {
+async function showProductDetail(ctx) {
+  return renderProduct(ctx, ctx.match[1]);
+}
+
+async function selectVariant(ctx) {
   const productId = Number(ctx.match[1]);
   const variantId = Number(ctx.match[2]);
-  
+  const variant = await prisma.productVariant.findFirst({ where: { id: variantId, productId } });
+  if (!variant) return ctx.answerCbQuery('Option unavailable', { show_alert: true });
+
+  ctx.session = ctx.session || {};
+  ctx.session.selectedVariants = ctx.session.selectedVariants || {};
+  ctx.session.selectedVariants[productId] = variantId;
+  return renderProduct(ctx, productId);
+}
+
+async function addSelectedToCart(ctx) {
+  const productId = Number(ctx.match[1]);
+  const variantId = Number(ctx.session?.selectedVariants?.[productId]);
+  if (!variantId) return ctx.answerCbQuery('Select an option first', { show_alert: true });
+
   try {
     await cartService.addVariantItem(ctx.state.user.id, productId, variantId, 1);
-    await ctx.answerCbQuery(`✅ Added to cart`);
-    
-    // Open the cart directly after adding
-    const { showCart } = require('./cart');
-    await showCart(ctx);
-  } catch (e) {
-    await ctx.answerCbQuery(e.message || 'Could not add', { show_alert: true });
+    return renderProduct(ctx, productId, '✅ Added to cart');
+  } catch (error) {
+    return ctx.answerCbQuery(error.message || 'Could not add', { show_alert: true });
   }
 }
 
-// Fallback for products without variants
 async function addToCart(ctx) {
   const productId = Number(ctx.match[1]);
   try {
     await cartService.addItem(ctx.state.user.id, productId, 1);
-    await ctx.answerCbQuery(`✅ Added to cart`);
-    
-    // Open the cart directly after adding
-    const { showCart } = require('./cart');
-    await showCart(ctx);
-  } catch (e) {
-    await ctx.answerCbQuery(e.message || 'Could not add', { show_alert: true });
+    return renderProduct(ctx, productId, '✅ Added to cart');
+  } catch (error) {
+    return ctx.answerCbQuery(error.message || 'Could not add', { show_alert: true });
   }
 }
 
 function register(bot) {
   bot.action(/^prod:(\d+)$/, showProductDetail);
-  bot.action(/^prodNav:(\d+):(.+)$/, showProductDetail);
-  
-  bot.action(/^addVar:(\d+):(\d+)$/, addVariantToCart);
+  bot.action(/^selectVar:(\d+):(\d+)$/, selectVariant);
+  bot.action(/^addSelected:(\d+)$/, addSelectedToCart);
   bot.action(/^add:(\d+)$/, addToCart);
-  
-  // Empty stub for reviews/vendor for now
-  bot.action(/^reviews:(\d+)$/, async (ctx) => {
-    await ctx.answerCbQuery('Reviews feature coming soon!').catch(() => {});
-  });
+  bot.action(/^reviews:(\d+)$/, (ctx) => ctx.answerCbQuery('Reviews feature coming soon!'));
   bot.hears('/vendor', (ctx) => ctx.reply('Vendor info coming soon.'));
 }
 

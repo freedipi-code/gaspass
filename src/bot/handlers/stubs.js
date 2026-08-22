@@ -19,6 +19,7 @@ function comingSoon(title) {
 }
 
 function register(bot) {
+  bot.action('noop', (ctx) => ctx.answerCbQuery().catch(() => {}));
   bot.action('wishlist', comingSoon('⭐ *Wishlist*'));
   bot.action('reviews', comingSoon('🎉 *Reviews*'));
   bot.action('featured', comingSoon('⭐ *Featured Products*'));
@@ -27,6 +28,7 @@ function register(bot) {
   bot.action('reviews_home', comingSoon('📝 *Store Reviews*'));
   bot.action('faq', comingSoon('❓ *Frequently Asked Questions*'));
   bot.action('tor', comingSoon('🧅 *Tor Link / Mirror*'));
+  bot.action('news_feed', comingSoon('📢 *News Feed*'));
 }
 
 module.exports = { register };

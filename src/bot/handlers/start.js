@@ -1,5 +1,6 @@
 const shop = require('../../shop.config');
 const { homeMenu } = require('../keyboards');
+const cartService = require('../../services/cart.service');
 const { resolveImage, rememberTelegramPhoto } = require('../../utils/image');
 const { isMessageNotModifiedError } = require('../../utils/telegram');
 
@@ -15,32 +16,30 @@ const HELP_TEXT = [
   '/help — Show this list',
 ].join('\n');
 
-function buildWelcomeText(ctx) {
-  const verification = ctx.session?.verificationPhrase 
-    ? `*${ctx.session.verificationPhrase}*`
-    : 'not set yet';
+function buildWelcomeText() {
   return [
-    `♦ *DANK OF WALES*`,
-    `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯`,
-    `🌑 BTC, LTC`,
-    `⭐ 4.9/5`,
-    `📄 457 sales`,
-    `📦 Not set`,
-    `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯`,
-    `🔗 Linked web account: not linked`,
-    `🔐 Verification phrase ${verification}`,
-    `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯`,
-    `Compare this phrase across legit shop bots and your signed-in web account.`,
-    `Made by Phoenix`
+    '<b>✅ Shop is Online!</b>',
+    '',
+    `⭐ ${shop.averageReview} Average Review`,
+    `⚡ ${shop.averageTicketResponse} Average Ticket Response`,
+    '',
+    `Welcome to ${shop.name}!`,
+    '',
+    shop.welcomeText,
+    '',
+    shop.channelUrl
+      ? `${shop.footerText} | <a href="${shop.channelUrl}">${shop.channelLabel}</a>`
+      : shop.footerText,
   ].join('\n');
 }
 
 async function showHome(ctx) {
   const text = buildWelcomeText(ctx);
-  const keyboard = homeMenu();
+  const summary = await cartService.getSummary(ctx.state.user.id);
+  const keyboard = homeMenu(summary);
   const photoSrc = resolveImage(shop.welcomeImage);
   const opts = {
-    parse_mode: 'Markdown',
+    parse_mode: 'HTML',
     ...keyboard
   };
 
@@ -50,7 +49,7 @@ async function showHome(ctx) {
       if (photoSrc) {
         if (ctx.callbackQuery.message?.photo) {
           const edited = await ctx.editMessageMedia(
-            { type: 'photo', media: photoSrc, caption: text, parse_mode: 'Markdown' },
+            { type: 'photo', media: photoSrc, caption: text, parse_mode: 'HTML' },
             opts
           );
           rememberTelegramPhoto(shop.welcomeImage, edited);
@@ -86,7 +85,20 @@ async function handleSetVerification(ctx) {
 }
 
 async function showHelp(ctx) {
-  await ctx.reply(HELP_TEXT, { parse_mode: 'Markdown' });
+  const opts = { parse_mode: 'Markdown' };
+  if (!ctx.callbackQuery) return ctx.reply(HELP_TEXT, opts);
+
+  await ctx.answerCbQuery().catch(() => {});
+  if (ctx.callbackQuery.message?.photo) {
+    await ctx.deleteMessage().catch(() => {});
+    return ctx.reply(HELP_TEXT, opts);
+  }
+  try {
+    return await ctx.editMessageText(HELP_TEXT, opts);
+  } catch (error) {
+    if (isMessageNotModifiedError(error)) return;
+    return ctx.reply(HELP_TEXT, opts);
+  }
 }
 
 function register(bot) {
@@ -97,6 +109,7 @@ function register(bot) {
   bot.action('set_verification', handleSetVerification);
   
   bot.command('help', showHelp);
+  bot.action('help', showHelp);
 
   // Capture verification phrase text input
   bot.on('text', async (ctx, next) => {

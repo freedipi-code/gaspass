@@ -1,224 +1,167 @@
-const prisma = require('../../db/client');
-const shop = require('../../shop.config');
-const { resolveImage, rememberTelegramPhoto } = require('../../utils/image');
-const { isMessageNotModifiedError } = require('../../utils/telegram');
-const { formatPrice, chunk } = require('../keyboards');
 const { Markup } = require('telegraf');
+const prisma = require('../../db/client');
+const cartService = require('../../services/cart.service');
+const { cartLabel, chunk, formatProductCount } = require('../keyboards');
+const { isMessageNotModifiedError } = require('../../utils/telegram');
 
 const PRODUCTS_PER_PAGE = 8;
-const CATALOG_CACHE_TTL_MS = 30 * 1000;
-const catalogCache = new Map();
+const CACHE_TTL_MS = 30 * 1000;
+const cache = new Map();
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
+}
 
 async function cached(key, loader) {
-  const item = catalogCache.get(key);
-  if (item && item.expiresAt > Date.now()) return item.value;
-
+  const saved = cache.get(key);
+  if (saved && saved.expiresAt > Date.now()) return saved.value;
   const value = await loader();
-  catalogCache.set(key, { value, expiresAt: Date.now() + CATALOG_CACHE_TTL_MS });
+  cache.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
   return value;
 }
 
-// Helper to send or edit a banner message
-async function sendOrEditWithBanner(ctx, photoPath, text, keyboard) {
-  const photoSrc = resolveImage(photoPath);
-  const opts = {
-    parse_mode: 'Markdown',
-    ...keyboard,
-  };
+async function sendOrEditText(ctx, text, keyboard) {
+  const options = { parse_mode: 'HTML', ...keyboard };
+  if (!ctx.callbackQuery) return ctx.reply(text, options);
 
-  if (ctx.callbackQuery) {
-    await ctx.answerCbQuery().catch(() => {});
-    try {
-      if (ctx.callbackQuery.message?.photo && photoSrc) {
-        // Edit media caption
-        const edited = await ctx.editMessageMedia(
-          { type: 'photo', media: photoSrc, caption: text, parse_mode: 'Markdown' },
-          opts
-        );
-        rememberTelegramPhoto(photoPath, edited);
-      } else {
-        // Delete and send fresh to show photo correctly
-        await ctx.deleteMessage().catch(() => {});
-        if (photoSrc) {
-          const sent = await ctx.replyWithPhoto(photoSrc, { caption: text, ...opts });
-          rememberTelegramPhoto(photoPath, sent);
-        } else {
-          await ctx.reply(text, opts);
-        }
-      }
-      return;
-    } catch (e) {
-      if (isMessageNotModifiedError(e)) return;
-      console.error('Error editing banner message:', e.message);
+  await ctx.answerCbQuery().catch(() => {});
+  try {
+    if (ctx.callbackQuery.message?.photo) {
+      await ctx.deleteMessage().catch(() => {});
+      return await ctx.reply(text, options);
     }
-  }
-
-  if (photoSrc) {
-    const sent = await ctx.replyWithPhoto(photoSrc, { caption: text, ...opts });
-    rememberTelegramPhoto(photoPath, sent);
-  } else {
-    await ctx.reply(text, opts);
+    return await ctx.editMessageText(text, options);
+  } catch (error) {
+    if (isMessageNotModifiedError(error)) return;
+    console.error('Catalog rendering failed:', error.message);
+    return ctx.reply(text, options);
   }
 }
 
-// 1. Browse Root Categories (Image 2)
+async function getCategoryData() {
+  return cached('category-data', async () => {
+    const categories = await prisma.category.findMany({
+      include: { _count: { select: { products: { where: { active: true } } } } },
+      orderBy: { id: 'asc' },
+    });
+    const childrenByParent = new Map();
+    for (const category of categories) {
+      const key = category.parentId || 0;
+      childrenByParent.set(key, [...(childrenByParent.get(key) || []), category]);
+    }
+    return {
+      categories,
+      categoryById: new Map(categories.map((category) => [category.id, category])),
+      childrenByParent,
+    };
+  });
+}
+
+function descendantIds(categoryId, childrenByParent) {
+  const ids = [Number(categoryId)];
+  for (let index = 0; index < ids.length; index += 1) {
+    const children = childrenByParent.get(ids[index]) || [];
+    ids.push(...children.map((child) => child.id));
+  }
+  return ids;
+}
+
+function recursiveProductCount(category, categoryById, childrenByParent) {
+  return descendantIds(category.id, childrenByParent).reduce(
+    (total, id) => total + (categoryById.get(id)?._count?.products || 0),
+    0,
+  );
+}
+
 async function showBrowseRoot(ctx) {
-  const roots = await cached('roots', () =>
-    prisma.category.findMany({
-      where: { parentId: null },
-      orderBy: { id: 'asc' },
-    })
-  );
-
-  const text = 'Choose a category';
-
-  // Build root category buttons
-  const buttons = roots.map((c) => Markup.button.callback(c.name, `cat:root:${c.id}`));
-  
-  // Footer buttons
-  const rows = chunk(buttons, 1);
-  rows.push([Markup.button.callback('🧺 Cart', 'cart')]);
-  rows.push([{ text: '← Back', callback_data: 'home', style: 'danger' }]);
-  rows.push([{ text: '⌂ Home', callback_data: 'home', style: 'danger' }]);
-
-  await sendOrEditWithBanner(ctx, 'images/browse_banner.png', text, Markup.inlineKeyboard(rows));
-}
-
-// 2. Browse Subcategories/Sections (Image 3)
-async function showCategorySections(ctx, rootId) {
-  const root = await cached(`root:${rootId}`, () =>
-    prisma.category.findUnique({
-      where: { id: Number(rootId) },
-    })
-  );
-  if (!root) return showBrowseRoot(ctx);
-
-  const subcategories = await cached(`sections:${rootId}`, () =>
-    prisma.category.findMany({
-      where: { parentId: Number(rootId) },
-      include: {
-        _count: {
-          select: { products: { where: { active: true } } }
-        }
-      },
-      orderBy: { id: 'asc' },
-    })
-  );
-
-  const text = `*${root.name}*\nChoose a section`;
-
-  // Build subcategory buttons with product count
-  const buttons = subcategories.map((c) => {
-    const count = c._count?.products || 0;
-    return Markup.button.callback(`${c.name} (${count})`, `cat:${c.id}:page:0`);
+  const { categoryById, childrenByParent } = await getCategoryData();
+  const roots = childrenByParent.get(0) || [];
+  const summary = await cartService.getSummary(ctx.state.user.id);
+  const buttons = roots.map((category) => {
+    const count = recursiveProductCount(category, categoryById, childrenByParent);
+    return Markup.button.callback(
+      `${category.name} (${formatProductCount(count)})`,
+      `cat:${category.id}:page:0`,
+    );
   });
 
   const rows = chunk(buttons, 1);
-  rows.push([Markup.button.callback('🧺 Cart', 'cart')]);
-  rows.push([{ text: '← Back', callback_data: 'browse', style: 'danger' }]);
-  rows.push([{ text: '⌂ Home', callback_data: 'home', style: 'danger' }]);
+  rows.push([Markup.button.callback(cartLabel(summary), 'cart')]);
+  rows.push([{ text: '🏠 Main Menu', callback_data: 'home', style: 'primary' }]);
 
-  await sendOrEditWithBanner(ctx, 'images/category_banner.png', text, Markup.inlineKeyboard(rows));
+  const text = '<b>📦 Main Categories</b>\n\n<b>Choose a category:</b>';
+  return sendOrEditText(ctx, text, Markup.inlineKeyboard(rows));
 }
 
-// 3. Browse Products List in Subcategory (Image 4)
-async function showSubcategoryProducts(ctx, subcatId, page = 0) {
-  const subcat = await cached(`subcat:${subcatId}`, () =>
-    prisma.category.findUnique({
-      where: { id: Number(subcatId) },
-      include: { parent: true },
-    })
-  );
-  if (!subcat) return showBrowseRoot(ctx);
+async function showCategoryProducts(ctx, categoryId, requestedPage = 0) {
+  const { categories, childrenByParent } = await getCategoryData();
+  const category = categories.find((item) => item.id === Number(categoryId));
+  if (!category) return showBrowseRoot(ctx);
 
-  const allProducts = await cached(`products:${subcatId}`, () =>
-    prisma.product.findMany({
-      where: { categoryId: Number(subcatId), active: true },
-      orderBy: { id: 'asc' },
-    })
-  );
+  const ids = descendantIds(category.id, childrenByParent);
+  const products = await cached(`products:${ids.join(',')}`, () => prisma.product.findMany({
+    where: { categoryId: { in: ids }, active: true },
+    orderBy: { id: 'asc' },
+  }));
 
-  const totalPages = Math.max(1, Math.ceil(allProducts.length / PRODUCTS_PER_PAGE));
-  const safePage = Math.min(page, totalPages - 1);
-  const pageOffset = safePage * PRODUCTS_PER_PAGE;
-  const pageProducts = allProducts.slice(pageOffset, pageOffset + PRODUCTS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(products.length / PRODUCTS_PER_PAGE));
+  const page = Math.max(0, Math.min(Number(requestedPage) || 0, totalPages - 1));
+  const visibleProducts = products.slice(page * PRODUCTS_PER_PAGE, (page + 1) * PRODUCTS_PER_PAGE);
+  const summary = await cartService.getSummary(ctx.state.user.id);
 
-  // Save state for product detail back button
   ctx.session = ctx.session || {};
-  ctx.session.catalogProducts = allProducts.map((p) => p.id);
-  ctx.session.catalogCategory = String(subcatId);
-  ctx.session.catalogPage = safePage;
+  ctx.session.catalogProducts = products.map((product) => product.id);
+  ctx.session.catalogCategory = String(category.id);
+  ctx.session.catalogPage = page;
 
-  const text = `*${subcat.name}*`;
+  const rows = visibleProducts.map((product) => [
+    Markup.button.callback(product.name, `prod:${product.id}`),
+  ]);
 
-  // Build product list buttons
-  const buttons = pageProducts.map((p) =>
-    Markup.button.callback(`🛒 ${p.name} · ${formatPrice(p.price)}`, `prod:${p.id}`)
-  );
-
-  const rows = chunk(buttons, 1);
-
-  // Pagination row
+  if (!visibleProducts.length) rows.push([Markup.button.callback('No products available', 'noop')]);
   if (totalPages > 1) {
-    const navRow = [];
-    if (safePage > 0) {
-      navRow.push(Markup.button.callback('‹ Prev', `cat:${subcatId}:page:${safePage - 1}`));
-    }
-    navRow.push(Markup.button.callback(`${safePage + 1}/${totalPages}`, 'noop'));
-    if (safePage < totalPages - 1) {
-      navRow.push(Markup.button.callback('Next ›', `cat:${subcatId}:page:${safePage + 1}`));
-    }
-    rows.push(navRow);
+    rows.push([
+      ...(page > 0 ? [Markup.button.callback('‹ Previous', `cat:${category.id}:page:${page - 1}`)] : []),
+      Markup.button.callback(`${page + 1}/${totalPages}`, 'noop'),
+      ...(page < totalPages - 1 ? [Markup.button.callback('Next ›', `cat:${category.id}:page:${page + 1}`)] : []),
+    ]);
   }
 
-  // Footer buttons
-  rows.push([Markup.button.callback('🧺 Cart', 'cart')]);
-  
-  const backCallback = subcat.parentId ? `cat:root:${subcat.parentId}` : 'browse';
-  rows.push([{ text: '← Back', callback_data: backCallback, style: 'danger' }]);
-  rows.push([{ text: '⌂ Home', callback_data: 'home', style: 'danger' }]);
+  rows.push([Markup.button.callback(cartLabel(summary), 'cart')]);
+  rows.push([
+    Markup.button.callback('⬅️ Up/Back', category.parentId ? `cat:${category.parentId}:page:0` : 'browse'),
+    Markup.button.callback('🛍️ Main Categories', 'browse'),
+  ]);
+  rows.push([{ text: '🏠 Main Menu', callback_data: 'home', style: 'primary' }]);
 
-  await sendOrEditWithBanner(ctx, 'images/subcategory_banner.png', text, Markup.inlineKeyboard(rows));
+  const text = [
+    `<b>📦 Products in ${escapeHtml(category.name)}</b>`,
+    '',
+    '<b>Navigation Path:</b>',
+    '• Categories',
+    `└── ${escapeHtml(category.name)} ⬅️`,
+    '',
+    '<b>Available Products:</b>',
+  ].join('\n');
+
+  return sendOrEditText(ctx, text, Markup.inlineKeyboard(rows));
 }
 
 function register(bot) {
-  // Main browse action
   bot.action('browse', showBrowseRoot);
   bot.command('shop', showBrowseRoot);
   bot.action('shop', showBrowseRoot);
-
-  // Categories root click
-  bot.action(/^cat:root:(\d+)$/, async (ctx) => {
-    const rootId = ctx.match[1];
-    return showCategorySections(ctx, rootId);
-  });
-
-  // Subcategory click / pagination
-  bot.action(/^cat:(\d+):page:(\d+)$/, async (ctx) => {
-    const subcatId = ctx.match[1];
-    const page = Number(ctx.match[2]);
-    return showSubcategoryProducts(ctx, subcatId, page);
-  });
-
-  bot.action(/^cat:(\d+)$/, async (ctx) => {
-    const subcatId = ctx.match[1];
-    return showSubcategoryProducts(ctx, subcatId, 0);
-  });
-
-  // Back redirect from product detail page
-  bot.action(/^catalog:back:(.+)$/, async (ctx) => {
-    const catVal = ctx.match[1];
-    const page = ctx.session?.catalogPage || 0;
-    if (catVal === 'all') {
-      return showBrowseRoot(ctx);
-    }
-    return showSubcategoryProducts(ctx, catVal, page);
+  bot.action(/^cat:root:(\d+)$/, (ctx) => showCategoryProducts(ctx, ctx.match[1], 0));
+  bot.action(/^cat:(\d+):page:(\d+)$/, (ctx) => showCategoryProducts(ctx, ctx.match[1], ctx.match[2]));
+  bot.action(/^cat:(\d+)$/, (ctx) => showCategoryProducts(ctx, ctx.match[1], 0));
+  bot.action(/^catalog:back:(.+)$/, (ctx) => {
+    const categoryId = ctx.match[1] === 'all' ? ctx.session?.catalogCategory : ctx.match[1];
+    if (!categoryId) return showBrowseRoot(ctx);
+    return showCategoryProducts(ctx, categoryId, ctx.session?.catalogPage || 0);
   });
 }
 
-module.exports = {
-  register,
-  showBrowseRoot,
-  showCategorySections,
-  showSubcategoryProducts,
-};
+module.exports = { register, showBrowseRoot, showCategoryProducts };

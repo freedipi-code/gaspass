@@ -7,19 +7,22 @@
 
 module.exports = {
   // Display name shown in welcome message header
-  name: "DANK OF WALES",
+  name: "L3thalTBC_BOT",
 
   // Vendor name shown on product pages (-- by VendorName)
-  vendorName: "Phoenix",
+  vendorName: "TBC",
   vendorCommand: "/vendor",
 
   // Emoji prepended/appended to the shop name in welcome
   emoji: "",
 
   // Welcome intro text (storefront style)
-  welcomeText: [
-    "Welcome to Dank of Wales.",
-  ].join("\n"),
+  welcomeText: "Use the buttons below to browse our products, view your cart and view your previous orders. If you get lost, you can type /start to return to this menu at any time.",
+
+  // Storefront trust indicators
+  averageReview: "4.9",
+  averageTicketResponse: "3hr",
+  reviewCount: 132,
 
   // Shipping policy line (1-2 short lines max)
   shippingLine: "🌍 Worldwide Shipping",
@@ -38,13 +41,13 @@ module.exports = {
 
   // Footer
   footerLink: "",
-  footerText: "Made by Phoenix",
+  footerText: "Powered by TBC",
 
   // About page command
   aboutCommand: "/info",
 
   // Welcome cover image (path to local file OR public URL OR empty for text-only)
-  welcomeImage: "images/home_banner.png",
+  welcomeImage: "images/l3thal-home.jpeg",
 
   // Currency code
   currency: "GBP",
