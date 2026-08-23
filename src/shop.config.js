@@ -7,21 +7,52 @@
 
 module.exports = {
   // Display name shown in welcome message header
-  name: "L3thalTBC_BOT",
+  name: "NCUK SHOP",
 
   // Vendor name shown on product pages (-- by VendorName)
-  vendorName: "TBC",
+  vendorName: "NarcosCityUK",
   vendorCommand: "/vendor",
 
   // Emoji prepended/appended to the shop name in welcome
   emoji: "",
 
   // Welcome intro text (storefront style)
-  welcomeText: "Use the buttons below to browse our products, view your cart and view your previous orders. If you get lost, you can type /start to return to this menu at any time.",
+  welcomeText: "Welcome to NarcosCityUK Shop",
+
+  // Full home-page message. HTML entities are used because Telegram renders it
+  // with parse_mode: HTML.
+  homeText: [
+    "<b>✅ Shop is Online:</b>",
+    "",
+    "📦 3,152 Sales",
+    "⭐ 5.0 Average Review",
+    "⚡ 6hr Average Ticket Response",
+    "",
+    "Welcome to NarcosCityUK Shop👋",
+    "",
+    "Established vendor on the DarkNetMarkets &amp; other platforms 🏆with thousands of successful sales &amp; years of experience ☑️",
+    "",
+    "Well known for our amazing service &amp; generous prices✅",
+    "",
+    "Cut off is 8pm day before for next day shipping",
+    "",
+    "Any inquiries contact - /tickets",
+    "",
+    "🔔Tracking uploaded daily 🔔",
+    "",
+    "💰Drop Shipping is available 💰",
+    "",
+    "⭐Leave a reveiw &amp; Thank you for shopping!",
+    "⭐",
+    "",
+    "PLEASE NOTE: 📸 ONCE YOU RECEIVE YOUR ORDER YOU MUST VIDEO YOURSELF OPENING IT. INCASE OF ANY PROBLEMS. NO VIDEO - NO PROOF, SO NO RESHIPS!!",
+    "",
+    "<i>*SAVE THIS LINK TO NEVER LOSE CONTACT WITH US*</i>",
+  ].join("\n"),
 
   // Storefront trust indicators
-  averageReview: "4.9",
-  averageTicketResponse: "3hr",
+  averageReview: "5.0",
+  averageTicketResponse: "6hr",
   reviewCount: 132,
 
   // Shipping policy line (1-2 short lines max)
@@ -41,13 +72,13 @@ module.exports = {
 
   // Footer
   footerLink: "",
-  footerText: "Powered by TBC",
+  footerText: "NarcosCityUK Shop",
 
   // About page command
   aboutCommand: "/info",
 
   // Welcome cover image (path to local file OR public URL OR empty for text-only)
-  welcomeImage: "images/l3thal-home.jpeg",
+  welcomeImage: "",
 
   // Currency code
   currency: "GBP",

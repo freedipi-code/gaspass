@@ -17,6 +17,8 @@ const HELP_TEXT = [
 ].join('\n');
 
 function buildWelcomeText() {
+  if (shop.homeText) return shop.homeText;
+
   return [
     '<b>✅ Shop is Online!</b>',
     '',
