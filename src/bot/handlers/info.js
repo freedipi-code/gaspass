@@ -1,5 +1,6 @@
 const { Markup } = require('telegraf');
 const shop = require('../../shop.config');
+const { replyWithBrandImage } = require('../brand-message');
 
 async function showInfo(ctx) {
   const text = `ℹ️ *Information*\n\n${shop.information}`;
@@ -7,19 +8,7 @@ async function showInfo(ctx) {
     parse_mode: 'Markdown',
     ...Markup.inlineKeyboard([[Markup.button.callback('🏠 Catalog', 'catalog:page:0:all')]]),
   };
-  if (ctx.callbackQuery) {
-    await ctx.answerCbQuery().catch(() => {});
-    try {
-      if (ctx.callbackQuery.message?.photo) {
-        await ctx.deleteMessage().catch(() => {});
-        await ctx.reply(text, opts);
-      } else {
-        await ctx.editMessageText(text, opts);
-      }
-      return;
-    } catch (_) {}
-  }
-  return ctx.reply(text, opts);
+  return replyWithBrandImage(ctx, text, opts);
 }
 
 function register(bot) {
@@ -47,7 +36,7 @@ function register(bot) {
       `-----END PGP PUBLIC KEY BLOCK-----`,
       `\`\`\``
     ].join('\n');
-    return ctx.reply(pgpText, { parse_mode: 'Markdown' });
+    return replyWithBrandImage(ctx, pgpText, { parse_mode: 'Markdown' });
   };
 
   const pgpPpHandler = async (ctx) => {
@@ -63,7 +52,7 @@ function register(bot) {
       `-----END PGP PUBLIC KEY BLOCK-----`,
       `\`\`\``
     ].join('\n');
-    return ctx.reply(pgpText, { parse_mode: 'Markdown' });
+    return replyWithBrandImage(ctx, pgpText, { parse_mode: 'Markdown' });
   };
 
   const marketPgpHandler = async (ctx) => {
@@ -79,7 +68,7 @@ function register(bot) {
       `-----END PGP PUBLIC KEY BLOCK-----`,
       `\`\`\``
     ].join('\n');
-    return ctx.reply(pgpText, { parse_mode: 'Markdown' });
+    return replyWithBrandImage(ctx, pgpText, { parse_mode: 'Markdown' });
   };
 
   bot.hears('/pgp_qtetra', pgpHandler);

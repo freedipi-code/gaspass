@@ -2,6 +2,7 @@ const { Scenes, Markup } = require('telegraf');
 const cartService = require('../../services/cart.service');
 const shop = require('../../shop.config');
 const { formatPrice } = require('../keyboards');
+const { replyWithBrandImage } = require('../brand-message');
 
 // -- Checkout State Machine --
 const STEPS = {
@@ -182,7 +183,7 @@ async function renderStep(ctx) {
   }
 
   const opts = { parse_mode: 'Markdown', reply_markup: { inline_keyboard: keyboard } };
-  await ctx.reply(text, opts);
+  await replyWithBrandImage(ctx, text, opts);
 }
 
 const checkout = new Scenes.BaseScene('checkout');

@@ -1,7 +1,7 @@
 const prisma = require('../../db/client');
 const shop = require('../../shop.config');
-const { resolveImage } = require('../../utils/image');
 const { catalogKeyboard } = require('../keyboards');
+const { replyWithBrandImage } = require('../brand-message');
 
 const PRODUCTS_PER_PAGE = shop.productsPerPage || 5;
 
@@ -302,7 +302,6 @@ async function showHome(ctx) {
     caption = buildCompactCatalogText(pageProducts, 0, 'all', shop.welcomeText);
   }
 
-  const photoSrc = resolveImage(shop.welcomeImage);
   const keyboard = catalogKeyboard(0, totalPages, 'all', [], null);
 
   ctx.session = ctx.session || {};
@@ -310,25 +309,7 @@ async function showHome(ctx) {
   ctx.session.catalogCategory = 'all';
   ctx.session.catalogPage = 0;
 
-  if (ctx.callbackQuery) {
-    await ctx.answerCbQuery().catch(() => {});
-  }
-
-  if (photoSrc) {
-    try {
-      await ctx.replyWithPhoto(photoSrc, {
-        caption,
-        parse_mode: 'HTML',
-        ...keyboard,
-      });
-      return;
-    } catch (e) {
-      console.error('Failed to send welcome photo with caption:', e.message);
-      console.error('Caption length:', caption.length);
-    }
-  }
-
-  await ctx.reply(caption, { parse_mode: 'HTML', ...keyboard });
+  await replyWithBrandImage(ctx, caption, { parse_mode: 'HTML', ...keyboard });
 }
 
 // Show the catalog page
@@ -400,22 +381,7 @@ async function showCatalog(ctx, page = 0, categoryFilter = 'all') {
   ctx.session.catalogCategory = categoryFilter;
   ctx.session.catalogPage = safePage;
 
-  if (ctx.callbackQuery) {
-    await ctx.answerCbQuery().catch(() => {});
-    try {
-      // Try editing existing message
-      if (ctx.callbackQuery.message?.photo) {
-        await ctx.editMessageCaption(text, opts);
-      } else {
-        await ctx.editMessageText(text, opts);
-      }
-      return;
-    } catch (_) {
-      // Fallback: send new message
-    }
-  }
-
-  await ctx.reply(text, opts);
+  await replyWithBrandImage(ctx, text, opts);
 }
 
 function register(bot) {
@@ -465,7 +431,7 @@ function register(bot) {
 
     // Check special links first
     if (slug === 'create_custom_order') {
-      return ctx.reply('📝 *Custom Order*\n\nTo place a custom order, please message support or use /support.', { parse_mode: 'Markdown' });
+      return replyWithBrandImage(ctx, '📝 *Custom Order*\n\nTo place a custom order, please message support or use /support.', { parse_mode: 'Markdown' });
     }
     if (slug === 'clearance_rack' || slug === 'clear_rack') {
       const cats = await prisma.category.findMany();
@@ -473,13 +439,13 @@ function register(bot) {
       if (clearanceCat) {
         return showCatalog(ctx, 0, String(clearanceCat.id));
       }
-      return ctx.reply('🏷️ *Clearance Rack*\n\nNo clearance products available right now. Check back later!', { parse_mode: 'Markdown' });
+      return replyWithBrandImage(ctx, '🏷️ *Clearance Rack*\n\nNo clearance products available right now. Check back later!', { parse_mode: 'Markdown' });
     }
     if (slug === 'refunds') {
-      return ctx.reply(`↩️ *Refund Policy*\n\n${shop.information}`, { parse_mode: 'Markdown' });
+      return replyWithBrandImage(ctx, `↩️ *Refund Policy*\n\n${shop.information}`, { parse_mode: 'Markdown' });
     }
     if (slug === 'shipping') {
-      return ctx.reply(`📦 *Shipping FAQs*\n\n${shop.information}`, { parse_mode: 'Markdown' });
+      return replyWithBrandImage(ctx, `📦 *Shipping FAQs*\n\n${shop.information}`, { parse_mode: 'Markdown' });
     }
     if (slug === 'new_products') {
       return showCatalog(ctx, 0, 'new_products');
@@ -495,7 +461,7 @@ function register(bot) {
         ``,
         `Thanks for spreading the word! 🌟`
       ].join('\n');
-      return ctx.reply(reviewBonusText, { parse_mode: 'Markdown' });
+      return replyWithBrandImage(ctx, reviewBonusText, { parse_mode: 'Markdown' });
     }
 
     // Otherwise find category by slug/name

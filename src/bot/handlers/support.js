@@ -1,5 +1,6 @@
 const { Markup } = require('telegraf');
 const config = require('../../config');
+const { replyWithBrandImage } = require('../brand-message');
 
 // Simple support flow:
 // 1. User clicks "Support" → bot asks them to send their question/issue.
@@ -22,11 +23,7 @@ async function startSupport(ctx) {
     parse_mode: 'Markdown',
     ...Markup.inlineKeyboard([[Markup.button.callback('🏠 Home', 'home')]]),
   };
-  if (ctx.callbackQuery) {
-    await ctx.answerCbQuery().catch(() => {});
-    try { await ctx.editMessageText(text, opts); return; } catch (_) {}
-  }
-  return ctx.reply(text, opts);
+  return replyWithBrandImage(ctx, text, opts);
 }
 
 function register(bot) {

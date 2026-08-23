@@ -1,5 +1,6 @@
 const shop = require('../../shop.config');
 const { showHome } = require('./catalog');
+const { replyWithBrandImage } = require('../brand-message');
 
 const HELP_TEXT = [
   '*Available commands*',
@@ -14,7 +15,7 @@ const HELP_TEXT = [
 ].join('\n');
 
 async function showHelp(ctx) {
-  await ctx.reply(HELP_TEXT, { parse_mode: 'Markdown' });
+  await replyWithBrandImage(ctx, HELP_TEXT, { parse_mode: 'Markdown' });
 }
 
 function register(bot) {

@@ -2,6 +2,7 @@ const { Markup } = require('telegraf');
 const cartService = require('../../services/cart.service');
 const shop = require('../../shop.config');
 const { formatPrice } = require('../keyboards');
+const { replyWithBrandImage } = require('../brand-message');
 
 function buildCartView(cart) {
   if (!cart.items.length) {
@@ -43,22 +44,7 @@ function buildCartView(cart) {
 async function showCart(ctx) {
   const cart = await cartService.getCartWithItems(ctx.state.user.id);
   const { text, keyboard } = buildCartView(cart);
-  if (ctx.callbackQuery) {
-    await ctx.answerCbQuery().catch(() => {});
-    try {
-      if (ctx.callbackQuery.message?.photo) {
-        // Can't edit photo to text directly, need to reply fresh
-        await ctx.deleteMessage().catch(() => {});
-        await ctx.reply(text, { parse_mode: 'Markdown', ...keyboard });
-      } else {
-        await ctx.editMessageText(text, { parse_mode: 'Markdown', ...keyboard });
-      }
-      return;
-    } catch (_) {
-      // fallback
-    }
-  }
-  await ctx.reply(text, { parse_mode: 'Markdown', ...keyboard });
+  await replyWithBrandImage(ctx, text, { parse_mode: 'Markdown', ...keyboard });
 }
 
 function register(bot) {
