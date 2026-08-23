@@ -20,18 +20,20 @@ function buildWelcomeText(ctx) {
     ? `*${ctx.session.verificationPhrase}*`
     : 'not set yet';
   return [
-    `♦ *DANK OF WALES*`,
+    `♦ *${shop.name}*`,
     `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯`,
     `🌑 BTC, LTC`,
     `⭐ 4.9/5`,
-    `📄 457 sales`,
-    `📦 Not set`,
+    `🧾 2615 sales`,
+    shop.shippingLine,
     `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯`,
     `🔗 Linked web account: not linked`,
     `🔐 Verification phrase ${verification}`,
     `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯`,
     `Compare this phrase across legit shop bots and your signed-in web account.`,
-    `Made by Phoenix`
+    shop.footerLink
+      ? `[${shop.footerText}](${shop.footerLink})`
+      : shop.footerText
   ].join('\n');
 }
 

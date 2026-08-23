@@ -8,15 +8,21 @@ const { productDetailKeyboard, starsVisual, formatPrice } = require('../keyboard
 
 // ── Product Detail View ──
 
-function buildProductCaption(product, index, total) {
+function buildProductCaption(product, index, total, inCartQuantity = 0) {
   const idxStr = total > 0 ? ` (${index + 1}/${total})` : '';
-  return `*${product.name}*${idxStr}\n\n${product.description || ''}`;
+  const lines = [
+    `≔ _${product.name}_${idxStr}`,
+    '',
+    product.description || '',
+  ];
+  if (inCartQuantity > 0) lines.push('', `In cart: ${inCartQuantity}`);
+  return lines.join('\n');
 }
 
 // Exported so catalog.js can call it directly
-async function showProductDetail(ctx) {
+async function showProductDetail(ctx, options = {}) {
   // If called from a regex match or directly
-  const productId = Number(ctx.match[1] || ctx.match[2]); 
+  const productId = Number(options.productId || ctx.match[1] || ctx.match[2]);
   
   // Support for product index navigation (Next >)
   let pId = productId;
@@ -54,10 +60,23 @@ async function showProductDetail(ctx) {
     return;
   }
 
-  if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
+  if (ctx.callbackQuery && !options.callbackAnswered) {
+    await ctx.answerCbQuery().catch(() => {});
+  }
 
-  const caption = buildProductCaption(product, pIndex, totalProducts);
-  const keyboard = productDetailKeyboard(product, product.variants, pIndex, totalProducts, catFilter);
+  const cart = await cartService.getCartWithItems(ctx.state.user.id);
+  const inCartQuantity = cart.items
+    .filter((item) => item.productId === product.id)
+    .reduce((sum, item) => sum + item.quantity, 0);
+  const caption = buildProductCaption(product, pIndex, totalProducts, inCartQuantity);
+  const keyboard = productDetailKeyboard(
+    product,
+    product.variants,
+    pIndex,
+    totalProducts,
+    catFilter,
+    inCartQuantity
+  );
 
   const opts = {
     parse_mode: 'Markdown',
@@ -103,9 +122,7 @@ async function addVariantToCart(ctx) {
     await cartService.addVariantItem(ctx.state.user.id, productId, variantId, 1);
     await ctx.answerCbQuery(`✅ Added to cart`);
     
-    // Open the cart directly after adding
-    const { showCart } = require('./cart');
-    await showCart(ctx);
+    await showProductDetail(ctx, { productId, callbackAnswered: true });
   } catch (e) {
     await ctx.answerCbQuery(e.message || 'Could not add', { show_alert: true });
   }
@@ -118,9 +135,7 @@ async function addToCart(ctx) {
     await cartService.addItem(ctx.state.user.id, productId, 1);
     await ctx.answerCbQuery(`✅ Added to cart`);
     
-    // Open the cart directly after adding
-    const { showCart } = require('./cart');
-    await showCart(ctx);
+    await showProductDetail(ctx, { productId, callbackAnswered: true });
   } catch (e) {
     await ctx.answerCbQuery(e.message || 'Could not add', { show_alert: true });
   }
@@ -132,6 +147,17 @@ function register(bot) {
   
   bot.action(/^addVar:(\d+):(\d+)$/, addVariantToCart);
   bot.action(/^add:(\d+)$/, addToCart);
+
+  bot.action(/^chooseQty:(\d+)$/, async (ctx) => {
+    await ctx.answerCbQuery('Choose one of the available pack sizes above.', { show_alert: true });
+  });
+
+  bot.action(/^cart:removeProduct:(\d+)$/, async (ctx) => {
+    const productId = Number(ctx.match[1]);
+    await cartService.removeProductItems(ctx.state.user.id, productId);
+    await ctx.answerCbQuery('Removed from cart');
+    return showProductDetail(ctx, { productId, callbackAnswered: true });
+  });
   
   // Empty stub for reviews/vendor for now
   bot.action(/^reviews:(\d+)$/, async (ctx) => {
@@ -140,4 +166,4 @@ function register(bot) {
   bot.hears('/vendor', (ctx) => ctx.reply('Vendor info coming soon.'));
 }
 
-module.exports = { register, showProductDetail };
+module.exports = { register, showProductDetail, buildProductCaption };

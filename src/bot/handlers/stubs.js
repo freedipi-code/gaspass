@@ -19,6 +19,7 @@ function comingSoon(title) {
 }
 
 function register(bot) {
+  bot.action('noop', (ctx) => ctx.answerCbQuery().catch(() => {}));
   bot.action('wishlist', comingSoon('⭐ *Wishlist*'));
   bot.action('reviews', comingSoon('🎉 *Reviews*'));
   bot.action('featured', comingSoon('⭐ *Featured Products*'));

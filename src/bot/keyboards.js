@@ -67,7 +67,7 @@ function catalogKeyboard(page, totalPages, categories, categoryFilter) {
 
 // ── Product detail keyboard ──
 
-function productDetailKeyboard(product, variants, productIndex, totalProducts, categoryFilter) {
+function productDetailKeyboard(product, variants, productIndex, totalProducts, categoryFilter, inCartQuantity = 0) {
   const rows = [];
 
   // Variant price buttons (stacked vertically, 1 per row)
@@ -75,7 +75,7 @@ function productDetailKeyboard(product, variants, productIndex, totalProducts, c
     for (const v of variants) {
       rows.push([
         {
-          text: `Add ${v.label} · ${formatPrice(v.price)}`,
+          text: `＋ ${v.label} · ${formatPrice(v.price)}`,
           callback_data: `addVar:${product.id}:${v.id}`,
           style: 'success',
         }
@@ -85,12 +85,16 @@ function productDetailKeyboard(product, variants, productIndex, totalProducts, c
     // Fallback: single "Add to cart" button
     rows.push([
       {
-        text: `Add to cart · ${formatPrice(product.price)}`,
+        text: `＋ Add to cart · ${formatPrice(product.price)}`,
         callback_data: `add:${product.id}`,
         style: 'success',
       }
     ]);
   }
+
+  rows.push([
+    Markup.button.callback('➕ Choose a quantity', `chooseQty:${product.id}`)
+  ]);
 
   // Wishlist
   rows.push([
@@ -98,9 +102,14 @@ function productDetailKeyboard(product, variants, productIndex, totalProducts, c
   ]);
 
   // Cart
-  rows.push([
-    Markup.button.callback('🧺 Cart', 'cart')
-  ]);
+  if (inCartQuantity > 0) {
+    rows.push([
+      { text: `🧺 Cart · ${inCartQuantity}`, callback_data: 'cart', style: 'success' },
+      { text: '×', callback_data: `cart:removeProduct:${product.id}`, style: 'danger' },
+    ]);
+  } else {
+    rows.push([{ text: '🧺 Cart', callback_data: 'cart', style: 'success' }]);
+  }
 
   // Back / Home buttons (stacked vertically, 1 per row, red color)
   rows.push([{ text: '← Back', callback_data: `catalog:back:${categoryFilter || 'all'}`, style: 'danger' }]);

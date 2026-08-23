@@ -9,6 +9,10 @@ const PRODUCTS_PER_PAGE = 8;
 const CATALOG_CACHE_TTL_MS = 30 * 1000;
 const catalogCache = new Map();
 
+function storefrontLabel(value) {
+  return `—— ⋆· ${String(value).trim()} ·⋆ ——`;
+}
+
 async function cached(key, loader) {
   const item = catalogCache.get(key);
   if (item && item.expiresAt > Date.now()) return item.value;
@@ -73,15 +77,18 @@ async function showBrowseRoot(ctx) {
   const text = 'Choose a category';
 
   // Build root category buttons
-  const buttons = roots.map((c) => Markup.button.callback(c.name, `cat:root:${c.id}`));
+  const buttons = roots.map((c) => ({
+    text: storefrontLabel(c.name),
+    callback_data: `cat:root:${c.id}`,
+    style: 'success',
+  }));
   
   // Footer buttons
   const rows = chunk(buttons, 1);
-  rows.push([Markup.button.callback('🧺 Cart', 'cart')]);
+  rows.push([{ text: '🧺 Cart', callback_data: 'cart', style: 'success' }]);
   rows.push([{ text: '← Back', callback_data: 'home', style: 'danger' }]);
-  rows.push([{ text: '⌂ Home', callback_data: 'home', style: 'danger' }]);
 
-  await sendOrEditWithBanner(ctx, 'images/browse_banner.png', text, Markup.inlineKeyboard(rows));
+  await sendOrEditWithBanner(ctx, 'images/alters-browse.png', text, Markup.inlineKeyboard(rows));
 }
 
 // 2. Browse Subcategories/Sections (Image 3)
@@ -89,6 +96,11 @@ async function showCategorySections(ctx, rootId) {
   const root = await cached(`root:${rootId}`, () =>
     prisma.category.findUnique({
       where: { id: Number(rootId) },
+      include: {
+        _count: {
+          select: { products: { where: { active: true } } },
+        },
+      },
     })
   );
   if (!root) return showBrowseRoot(ctx);
@@ -105,20 +117,41 @@ async function showCategorySections(ctx, rootId) {
     })
   );
 
-  const text = `*${root.name}*\nChoose a section`;
+  // Some catalogs attach products directly to a root category. In that case,
+  // skip the otherwise-empty section screen and open the product list.
+  const directProductCount = root._count?.products || 0;
+  if (subcategories.length === 0) {
+    return showSubcategoryProducts(ctx, rootId, 0);
+  }
+
+  const text = `*${storefrontLabel(root.name)}*\nChoose a section`;
 
   // Build subcategory buttons with product count
   const buttons = subcategories.map((c) => {
     const count = c._count?.products || 0;
-    return Markup.button.callback(`${c.name} (${count})`, `cat:${c.id}:page:0`);
+    return {
+      text: `✧ ${c.name} ✧ (${count})`,
+      callback_data: `cat:${c.id}:page:0`,
+      style: 'success',
+    };
   });
 
+  // Keep direct products reachable when a category contains both products and
+  // child sections.
+  if (directProductCount > 0) {
+    buttons.unshift({
+      text: `✧ ALL ${root.name} ✧ (${directProductCount})`,
+      callback_data: `cat:${root.id}:page:0`,
+      style: 'success',
+    });
+  }
+
   const rows = chunk(buttons, 1);
-  rows.push([Markup.button.callback('🧺 Cart', 'cart')]);
+  rows.push([{ text: '🧺 Cart', callback_data: 'cart', style: 'success' }]);
   rows.push([{ text: '← Back', callback_data: 'browse', style: 'danger' }]);
   rows.push([{ text: '⌂ Home', callback_data: 'home', style: 'danger' }]);
 
-  await sendOrEditWithBanner(ctx, 'images/category_banner.png', text, Markup.inlineKeyboard(rows));
+  await sendOrEditWithBanner(ctx, 'images/alters-categories.png', text, Markup.inlineKeyboard(rows));
 }
 
 // 3. Browse Products List in Subcategory (Image 4)
@@ -149,12 +182,16 @@ async function showSubcategoryProducts(ctx, subcatId, page = 0) {
   ctx.session.catalogCategory = String(subcatId);
   ctx.session.catalogPage = safePage;
 
-  const text = `*${subcat.name}*`;
+  const text = allProducts.length > 0
+    ? `✧ *${subcat.name}* ✧`
+    : `✧ *${subcat.name}* ✧\n\nNo products available in this category yet.`;
 
   // Build product list buttons
-  const buttons = pageProducts.map((p) =>
-    Markup.button.callback(`🛒 ${p.name} · ${formatPrice(p.price)}`, `prod:${p.id}`)
-  );
+  const buttons = pageProducts.map((p) => ({
+    text: `🛒 ≔ ${p.name} · ${formatPrice(p.price)}`,
+    callback_data: `prod:${p.id}`,
+    style: 'success',
+  }));
 
   const rows = chunk(buttons, 1);
 
@@ -172,13 +209,13 @@ async function showSubcategoryProducts(ctx, subcatId, page = 0) {
   }
 
   // Footer buttons
-  rows.push([Markup.button.callback('🧺 Cart', 'cart')]);
+  rows.push([{ text: '🧺 Cart', callback_data: 'cart', style: 'success' }]);
   
   const backCallback = subcat.parentId ? `cat:root:${subcat.parentId}` : 'browse';
   rows.push([{ text: '← Back', callback_data: backCallback, style: 'danger' }]);
   rows.push([{ text: '⌂ Home', callback_data: 'home', style: 'danger' }]);
 
-  await sendOrEditWithBanner(ctx, 'images/subcategory_banner.png', text, Markup.inlineKeyboard(rows));
+  await sendOrEditWithBanner(ctx, 'images/alters-products.png', text, Markup.inlineKeyboard(rows));
 }
 
 function register(bot) {

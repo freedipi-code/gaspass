@@ -7,7 +7,7 @@
 
 module.exports = {
   // Display name shown in welcome message header
-  name: "DANK OF WALES",
+  name: "ALTERS WAREHOUSE",
 
   // Vendor name shown on product pages (-- by VendorName)
   vendorName: "Phoenix",
@@ -18,11 +18,11 @@ module.exports = {
 
   // Welcome intro text (storefront style)
   welcomeText: [
-    "Welcome to Dank of Wales.",
+    "Welcome to Alters Warehouse.",
   ].join("\n"),
 
   // Shipping policy line (1-2 short lines max)
-  shippingLine: "🌍 Worldwide Shipping",
+  shippingLine: "📦 Worldwide",
   dispatchLine: "⏰ All orders placed before 1pm are dispatched the same day for fast and reliable delivery.",
 
   // Bulk enquiries line
@@ -44,7 +44,7 @@ module.exports = {
   aboutCommand: "/info",
 
   // Welcome cover image (path to local file OR public URL OR empty for text-only)
-  welcomeImage: "images/home_banner.png",
+  welcomeImage: "images/alters-home.jpeg",
 
   // Currency code
   currency: "GBP",

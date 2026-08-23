@@ -14,14 +14,14 @@ function buildCartView(cart) {
   }
 
   const lines = cart.items.map((it) => {
-    const label = it.variant ? ` · ${it.variant.label}` : '';
+    const label = it.variant ? it.variant.label : 'Item';
     const lineTotal = it.unitPrice * it.quantity;
-    return `- ${it.product.name}${label} x${it.quantity} = ${formatPrice(lineTotal)}`;
+    return `≔ _${it.product.name}_\n• ${label} × ${it.quantity} — ${formatPrice(lineTotal)}`;
   });
   
   const total = cartService.computeTotal(cart);
   const text =
-    `*Cart*\n\n${lines.join('\n')}\n\n` +
+    `*Your Cart*\n\n${lines.join('\n\n')}\n\n` +
     `*Total: ${formatPrice(total)}*`;
 
   const rows = [];
@@ -32,10 +32,13 @@ function buildCartView(cart) {
       ? `${it.product.name} · ${it.variant.label}`
       : `${it.product.name}`;
       
-    rows.push([Markup.button.callback(btnLabel, 'noop')]);
+    rows.push([{ text: `🛍️ ≔ ${btnLabel}`, callback_data: 'noop', style: 'success' }]);
     rows.push([
+      Markup.button.callback(it.variant?.label || 'Item', 'noop'),
       { text: `-`, callback_data: `cart:dec:${it.id}`, style: 'danger' },
+      { text: String(it.quantity), callback_data: 'noop', style: 'success' },
       { text: `+`, callback_data: `cart:inc:${it.id}`, style: 'success' },
+      { text: `×`, callback_data: `cart:remove:${it.id}`, style: 'danger' },
     ]);
   }
   
@@ -51,8 +54,9 @@ async function showCart(ctx) {
   const cart = await cartService.getCartWithItems(ctx.state.user.id);
   const { text, keyboard } = buildCartView(cart);
   
-  // Cart banner: use the cart_banner image provided by the user.
-  const photoSrc = resolveImage('images/cart_banner.png');
+  // Branded cart banner matching the storefront flow.
+  const banner = 'images/alters-cart.png';
+  const photoSrc = resolveImage(banner);
   const opts = {
     parse_mode: 'Markdown',
     ...keyboard,
@@ -66,12 +70,12 @@ async function showCart(ctx) {
           { type: 'photo', media: photoSrc, caption: text, parse_mode: 'Markdown' },
           opts
         );
-        rememberTelegramPhoto('images/cart_banner.png', edited);
+        rememberTelegramPhoto(banner, edited);
       } else {
         await ctx.deleteMessage().catch(() => {});
         if (photoSrc) {
           const sent = await ctx.replyWithPhoto(photoSrc, { caption: text, ...opts });
-          rememberTelegramPhoto('images/cart_banner.png', sent);
+          rememberTelegramPhoto(banner, sent);
         } else {
           await ctx.reply(text, opts);
         }
@@ -84,7 +88,7 @@ async function showCart(ctx) {
 
   if (photoSrc) {
     const sent = await ctx.replyWithPhoto(photoSrc, { caption: text, ...opts });
-    rememberTelegramPhoto('images/cart_banner.png', sent);
+    rememberTelegramPhoto(banner, sent);
   } else {
     await ctx.reply(text, opts);
   }
@@ -114,6 +118,13 @@ function register(bot) {
     return showCart(ctx);
   });
 
+  bot.action(/^cart:remove:(\d+)$/, async (ctx) => {
+    const cartItemId = Number(ctx.match[1]);
+    await cartService.removeItem(ctx.state.user.id, cartItemId);
+    await ctx.answerCbQuery('Removed');
+    return showCart(ctx);
+  });
+
   bot.action('cart:clear', async (ctx) => {
     await cartService.clear(ctx.state.user.id);
     await ctx.answerCbQuery('Cart cleared');
@@ -121,4 +132,4 @@ function register(bot) {
   });
 }
 
-module.exports = { register, showCart };
+module.exports = { register, showCart, buildCartView };

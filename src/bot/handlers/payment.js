@@ -95,7 +95,8 @@ function register(bot) {
     ]);
 
     // Send the checkout confirmation banner
-    const photoSrc = resolveImage('images/checkout_banner.png');
+    const banner = 'images/alters-payment.png';
+    const photoSrc = resolveImage(banner);
     const opts = {
       caption: message,
       parse_mode: 'Markdown',
@@ -105,7 +106,7 @@ function register(bot) {
     await ctx.deleteMessage().catch(() => {});
     if (photoSrc) {
       const sent = await ctx.replyWithPhoto(photoSrc, opts);
-      rememberTelegramPhoto('images/checkout_banner.png', sent);
+      rememberTelegramPhoto(banner, sent);
     } else {
       await ctx.reply(message, opts);
     }

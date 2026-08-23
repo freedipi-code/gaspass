@@ -75,7 +75,10 @@ async function addItem(userId, productId, qty = 1) {
 }
 
 async function decrementItem(userId, cartItemId) {
-  const item = await prisma.cartItem.findUnique({ where: { id: cartItemId } });
+  const cart = await getOrCreateCart(userId);
+  const item = await prisma.cartItem.findFirst({
+    where: { id: cartItemId, cartId: cart.id },
+  });
   if (!item) return null;
   
   if (item.quantity <= 1) {
@@ -89,12 +92,29 @@ async function decrementItem(userId, cartItemId) {
 }
 
 async function incrementItem(userId, cartItemId) {
-  const item = await prisma.cartItem.findUnique({ where: { id: cartItemId } });
+  const cart = await getOrCreateCart(userId);
+  const item = await prisma.cartItem.findFirst({
+    where: { id: cartItemId, cartId: cart.id },
+  });
   if (!item) return null;
   
   return prisma.cartItem.update({
     where: { id: item.id },
     data: { quantity: item.quantity + 1 },
+  });
+}
+
+async function removeItem(userId, cartItemId) {
+  const cart = await getOrCreateCart(userId);
+  return prisma.cartItem.deleteMany({
+    where: { id: cartItemId, cartId: cart.id },
+  });
+}
+
+async function removeProductItems(userId, productId) {
+  const cart = await getOrCreateCart(userId);
+  return prisma.cartItem.deleteMany({
+    where: { cartId: cart.id, productId },
   });
 }
 
@@ -115,6 +135,8 @@ module.exports = {
   addItem,
   decrementItem,
   incrementItem,
+  removeItem,
+  removeProductItems,
   clear,
   computeTotal,
 };

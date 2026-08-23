@@ -14,6 +14,14 @@ const STEPS = {
   NOTES: 'NOTES',
 };
 
+const SHIPPING_METHODS = {
+  t24: { name: 'T24', price: 7.00 },
+  t24_reship_25: { name: 'T24 (25% reship)', price: 10.00 },
+  t24_reship_50: { name: 'T24 (50% reship)', price: 15.00 },
+  non_postage: { name: '⚠️ ONLY FOR NON POSTAGE ITEMS ⚠️', price: 10.00 },
+  international: { name: '✈️ INTERNATIONAL SHIPPING ✈️', price: 39.99 },
+};
+
 async function renderStep(ctx) {
   const data = ctx.scene.session.checkout;
   const cart = await cartService.getCartWithItems(ctx.state.user.id);
@@ -23,14 +31,14 @@ async function renderStep(ctx) {
 
   let text = '';
   let keyboard = [];
-  const banner = 'images/checkout_banner.png';
+  const banner = 'images/alters-checkout.png';
 
   switch (data.step) {
     case STEPS.PAYMENT_METHOD:
       text = `Checkout\n\nChoose which asset you want to pay with.`;
       keyboard = [
-        [{ text: '₿ BTC', callback_data: 'checkout:pay:BTC', style: 'primary' }],
-        [{ text: 'Ł LTC', callback_data: 'checkout:pay:LTC', style: 'primary' }],
+        [{ text: '₿ BTC', callback_data: 'checkout:pay:BTC', style: 'success' }],
+        [{ text: 'Ł LTC', callback_data: 'checkout:pay:LTC', style: 'success' }],
         [{ text: '← Back', callback_data: 'cart', style: 'danger' }],
         [{ text: '⌂ Home', callback_data: 'home', style: 'danger' }],
       ];
@@ -39,8 +47,11 @@ async function renderStep(ctx) {
     case STEPS.SHIPPING_METHOD:
       text = `Checkout\n\nChoose a shipping method.`;
       keyboard = [
-        [{ text: '📦 24 NDD 1PM · GBP 11.00', callback_data: 'checkout:ship:11.00:24 NDD 1PM' }],
-        [{ text: '📦 24NDD · GBP 5.00', callback_data: 'checkout:ship:5.00:24NDD' }],
+        [{ text: '📦 T24 · GBP 7.00', callback_data: 'checkout:ship:t24', style: 'success' }],
+        [{ text: '📦 T24 (25% reship) · GBP 10.00', callback_data: 'checkout:ship:t24_reship_25', style: 'success' }],
+        [{ text: '📦 T24 (50% reship) · GBP 15.00', callback_data: 'checkout:ship:t24_reship_50', style: 'success' }],
+        [{ text: '📦 ⚠️ ONLY FOR NON POSTAGE ITEMS · GBP 10.00', callback_data: 'checkout:ship:non_postage', style: 'success' }],
+        [{ text: '📦 ✈️ INTERNATIONAL SHIPPING ✈️ · GBP 39.99', callback_data: 'checkout:ship:international', style: 'success' }],
         [{ text: '← Back', callback_data: 'checkout:step:PAYMENT_METHOD', style: 'danger' }],
         [{ text: '⌂ Home', callback_data: 'home', style: 'danger' }],
       ];
@@ -197,12 +208,11 @@ checkout.action(/^checkout:pay:(BTC|LTC)$/, async (ctx) => {
   await renderStep(ctx);
 });
 
-checkout.action(/^checkout:ship:([\d\.]+):(.+)$/, async (ctx) => {
+checkout.action(/^checkout:ship:([a-z0-9_]+)$/, async (ctx) => {
   await ctx.answerCbQuery().catch(() => {});
-  ctx.scene.session.checkout.shippingMethod = {
-    price: Number(ctx.match[1]),
-    name: ctx.match[2],
-  };
+  const method = SHIPPING_METHODS[ctx.match[1]];
+  if (!method) return renderStep(ctx);
+  ctx.scene.session.checkout.shippingMethod = { ...method };
   ctx.scene.session.checkout.step = STEPS.COUPON;
   await renderStep(ctx);
 });
@@ -232,3 +242,4 @@ checkout.action('checkout:change_shipping', async (ctx) => {
 });
 
 module.exports = checkout;
+module.exports.SHIPPING_METHODS = SHIPPING_METHODS;
