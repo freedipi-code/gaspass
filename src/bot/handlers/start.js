@@ -3,6 +3,7 @@ const { homeMenu } = require('../keyboards');
 const cartService = require('../../services/cart.service');
 const { resolveImage, rememberTelegramPhoto } = require('../../utils/image');
 const { isMessageNotModifiedError } = require('../../utils/telegram');
+const { renderPage } = require('../../utils/page');
 
 const HELP_TEXT = [
   '*Available commands*',
@@ -88,19 +89,7 @@ async function handleSetVerification(ctx) {
 
 async function showHelp(ctx) {
   const opts = { parse_mode: 'Markdown' };
-  if (!ctx.callbackQuery) return ctx.reply(HELP_TEXT, opts);
-
-  await ctx.answerCbQuery().catch(() => {});
-  if (ctx.callbackQuery.message?.photo) {
-    await ctx.deleteMessage().catch(() => {});
-    return ctx.reply(HELP_TEXT, opts);
-  }
-  try {
-    return await ctx.editMessageText(HELP_TEXT, opts);
-  } catch (error) {
-    if (isMessageNotModifiedError(error)) return;
-    return ctx.reply(HELP_TEXT, opts);
-  }
+  return renderPage(ctx, HELP_TEXT, opts);
 }
 
 function register(bot) {

@@ -51,8 +51,7 @@ async function showCart(ctx) {
   const cart = await cartService.getCartWithItems(ctx.state.user.id);
   const { text, keyboard } = buildCartView(cart);
   
-  // Cart banner: use the cart_banner image provided by the user.
-  const photoSrc = resolveImage('images/cart_banner.png');
+  const photoSrc = resolveImage(shop.pageImage);
   const opts = {
     parse_mode: 'Markdown',
     ...keyboard,
@@ -66,12 +65,12 @@ async function showCart(ctx) {
           { type: 'photo', media: photoSrc, caption: text, parse_mode: 'Markdown' },
           opts
         );
-        rememberTelegramPhoto('images/cart_banner.png', edited);
+        rememberTelegramPhoto(shop.pageImage, edited);
       } else {
         await ctx.deleteMessage().catch(() => {});
         if (photoSrc) {
           const sent = await ctx.replyWithPhoto(photoSrc, { caption: text, ...opts });
-          rememberTelegramPhoto('images/cart_banner.png', sent);
+          rememberTelegramPhoto(shop.pageImage, sent);
         } else {
           await ctx.reply(text, opts);
         }
@@ -84,7 +83,7 @@ async function showCart(ctx) {
 
   if (photoSrc) {
     const sent = await ctx.replyWithPhoto(photoSrc, { caption: text, ...opts });
-    rememberTelegramPhoto('images/cart_banner.png', sent);
+    rememberTelegramPhoto(shop.pageImage, sent);
   } else {
     await ctx.reply(text, opts);
   }

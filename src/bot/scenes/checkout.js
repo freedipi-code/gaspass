@@ -23,7 +23,7 @@ async function renderStep(ctx) {
 
   let text = '';
   let keyboard = [];
-  const banner = 'images/checkout_banner.png';
+  const banner = shop.pageImage;
 
   switch (data.step) {
     case STEPS.PAYMENT_METHOD:

@@ -1,6 +1,6 @@
 const { Markup } = require('telegraf');
 const shop = require('../../shop.config');
-const { isMessageNotModifiedError } = require('../../utils/telegram');
+const { renderPage } = require('../../utils/page');
 
 async function showInfo(ctx) {
   const text = `ℹ️ *Information*\n\n${shop.information}`;
@@ -8,21 +8,7 @@ async function showInfo(ctx) {
     parse_mode: 'Markdown',
     ...Markup.inlineKeyboard([[Markup.button.callback('🏠 Catalog', 'catalog:page:0:all')]]),
   };
-  if (ctx.callbackQuery) {
-    await ctx.answerCbQuery().catch(() => {});
-    try {
-      if (ctx.callbackQuery.message?.photo) {
-        await ctx.deleteMessage().catch(() => {});
-        await ctx.reply(text, opts);
-      } else {
-        await ctx.editMessageText(text, opts);
-      }
-      return;
-    } catch (e) {
-      if (isMessageNotModifiedError(e)) return;
-    }
-  }
-  return ctx.reply(text, opts);
+  return renderPage(ctx, text, opts);
 }
 
 function register(bot) {

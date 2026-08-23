@@ -2,6 +2,7 @@ const prisma = require('../../db/client');
 const cartService = require('../../services/cart.service');
 const { resolveImage, rememberTelegramPhoto } = require('../../utils/image');
 const { isMessageNotModifiedError } = require('../../utils/telegram');
+const { renderPage } = require('../../utils/page');
 const { formatPrice, productDetailKeyboard } = require('../keyboards');
 
 function escapeHtml(value) {
@@ -154,7 +155,7 @@ function register(bot) {
   bot.action(/^addSelected:(\d+)$/, addSelectedToCart);
   bot.action(/^add:(\d+)$/, addToCart);
   bot.action(/^reviews:(\d+)$/, (ctx) => ctx.answerCbQuery('Reviews feature coming soon!'));
-  bot.hears('/vendor', (ctx) => ctx.reply('Vendor info coming soon.'));
+  bot.hears('/vendor', (ctx) => renderPage(ctx, 'Vendor info coming soon.'));
 }
 
 module.exports = { register, showProductDetail };

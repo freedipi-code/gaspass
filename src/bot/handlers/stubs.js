@@ -1,5 +1,5 @@
 const { Markup } = require('telegraf');
-const { isMessageNotModifiedError } = require('../../utils/telegram');
+const { renderPage } = require('../../utils/page');
 
 function comingSoon(title) {
   return async (ctx) => {
@@ -10,11 +10,8 @@ function comingSoon(title) {
     };
     if (ctx.callbackQuery) {
       await ctx.answerCbQuery('Coming soon').catch(() => {});
-      try { await ctx.editMessageText(text, opts); return; } catch (e) {
-        if (isMessageNotModifiedError(e)) return;
-      }
     }
-    return ctx.reply(text, opts);
+    return renderPage(ctx, text, opts);
   };
 }
 

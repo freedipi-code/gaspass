@@ -1,6 +1,6 @@
 const { Markup } = require('telegraf');
 const config = require('../../config');
-const { isMessageNotModifiedError } = require('../../utils/telegram');
+const { renderPage } = require('../../utils/page');
 
 // Simple support flow:
 // 1. User clicks "Support" → bot asks them to send their question/issue.
@@ -23,13 +23,7 @@ async function startSupport(ctx) {
     parse_mode: 'Markdown',
     ...Markup.inlineKeyboard([[Markup.button.callback('🏠 Home', 'home')]]),
   };
-  if (ctx.callbackQuery) {
-    await ctx.answerCbQuery().catch(() => {});
-    try { await ctx.editMessageText(text, opts); return; } catch (e) {
-      if (isMessageNotModifiedError(e)) return;
-    }
-  }
-  return ctx.reply(text, opts);
+  return renderPage(ctx, text, opts);
 }
 
 function register(bot) {

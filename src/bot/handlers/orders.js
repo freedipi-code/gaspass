@@ -1,6 +1,6 @@
 const { Markup } = require('telegraf');
 const prisma = require('../../db/client');
-const { isMessageNotModifiedError } = require('../../utils/telegram');
+const { renderPage } = require('../../utils/page');
 
 function statusEmoji(status) {
   return {
@@ -24,13 +24,7 @@ async function showOrders(ctx) {
       ...Markup.inlineKeyboard([[Markup.button.callback('🏠 Home', 'home')]]),
     };
     const text = '📜 *Your Orders*\n\n_No orders yet._';
-    if (ctx.callbackQuery) {
-      await ctx.answerCbQuery().catch(() => {});
-      try { await ctx.editMessageText(text, opts); return; } catch (e) {
-        if (isMessageNotModifiedError(e)) return;
-      }
-    }
-    return ctx.reply(text, opts);
+    return renderPage(ctx, text, opts);
   }
 
   const rows = orders.map((o) => [
@@ -43,13 +37,7 @@ async function showOrders(ctx) {
 
   const text = '📜 *Your Orders* (10 most recent)\n\nTap an order for details.';
   const opts = { parse_mode: 'Markdown', ...Markup.inlineKeyboard(rows) };
-  if (ctx.callbackQuery) {
-    await ctx.answerCbQuery().catch(() => {});
-    try { await ctx.editMessageText(text, opts); return; } catch (e) {
-      if (isMessageNotModifiedError(e)) return;
-    }
-  }
-  return ctx.reply(text, opts);
+  return renderPage(ctx, text, opts);
 }
 
 async function showOrderDetail(ctx) {
@@ -75,18 +63,13 @@ async function showOrderDetail(ctx) {
     (order.notes ? `📝 ${order.notes}\n` : '') +
     `🕒 ${order.createdAt.toLocaleString('en-GB')}`;
 
-  await ctx.answerCbQuery().catch(() => {});
   const opts = {
     parse_mode: 'Markdown',
     ...Markup.inlineKeyboard([
       [Markup.button.callback('⬅️ Back', 'orders'), Markup.button.callback('🏠 Home', 'home')],
     ]),
   };
-  try { await ctx.editMessageText(text, opts); }
-  catch (e) {
-    if (isMessageNotModifiedError(e)) return;
-    await ctx.reply(text, opts);
-  }
+  return renderPage(ctx, text, opts);
 }
 
 function register(bot) {

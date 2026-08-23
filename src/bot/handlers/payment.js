@@ -3,6 +3,7 @@ const config = require('../../config');
 const orderService = require('../../services/order.service');
 const notifyService = require('../../services/notify.service');
 const cryptoService = require('../../services/crypto.service');
+const shop = require('../../shop.config');
 const { formatPrice } = require('../keyboards');
 const { resolveImage, rememberTelegramPhoto } = require('../../utils/image');
 
@@ -94,8 +95,7 @@ function register(bot) {
       [Markup.button.callback('≡ Main Menu', 'home')],
     ]);
 
-    // Send the checkout confirmation banner
-    const photoSrc = resolveImage('images/checkout_banner.png');
+    const photoSrc = resolveImage(shop.pageImage);
     const opts = {
       caption: message,
       parse_mode: 'Markdown',
@@ -105,7 +105,7 @@ function register(bot) {
     await ctx.deleteMessage().catch(() => {});
     if (photoSrc) {
       const sent = await ctx.replyWithPhoto(photoSrc, opts);
-      rememberTelegramPhoto('images/checkout_banner.png', sent);
+      rememberTelegramPhoto(shop.pageImage, sent);
     } else {
       await ctx.reply(message, opts);
     }

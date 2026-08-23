@@ -2,7 +2,7 @@ const { Markup } = require('telegraf');
 const prisma = require('../../db/client');
 const cartService = require('../../services/cart.service');
 const { cartLabel, chunk, formatProductCount } = require('../keyboards');
-const { isMessageNotModifiedError } = require('../../utils/telegram');
+const { renderPage } = require('../../utils/page');
 
 const PRODUCTS_PER_PAGE = 8;
 const CACHE_TTL_MS = 30 * 1000;
@@ -25,20 +25,7 @@ async function cached(key, loader) {
 
 async function sendOrEditText(ctx, text, keyboard) {
   const options = { parse_mode: 'HTML', ...keyboard };
-  if (!ctx.callbackQuery) return ctx.reply(text, options);
-
-  await ctx.answerCbQuery().catch(() => {});
-  try {
-    if (ctx.callbackQuery.message?.photo) {
-      await ctx.deleteMessage().catch(() => {});
-      return await ctx.reply(text, options);
-    }
-    return await ctx.editMessageText(text, options);
-  } catch (error) {
-    if (isMessageNotModifiedError(error)) return;
-    console.error('Catalog rendering failed:', error.message);
-    return ctx.reply(text, options);
-  }
+  return renderPage(ctx, text, options);
 }
 
 async function getCategoryData() {

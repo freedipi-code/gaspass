@@ -78,7 +78,10 @@ module.exports = {
   aboutCommand: "/info",
 
   // Welcome cover image (path to local file OR public URL OR empty for text-only)
-  welcomeImage: "",
+  welcomeImage: "images/ncuk-logo.jpeg",
+
+  // Shared image displayed on every navigation page except product details
+  pageImage: "images/ncuk-logo.jpeg",
 
   // Currency code
   currency: "GBP",
