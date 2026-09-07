@@ -3,6 +3,13 @@ const path = require('path');
 const config = require('./config');
 const bot = require('./bot/bot');
 const adminRouter = require('./bot/admin.router');
+const { startAutoMessageScheduler } = require('./services/auto-message.service');
+
+let stopAutoMessageScheduler = () => {};
+
+async function enableAutoMessageScheduler() {
+  stopAutoMessageScheduler = await startAutoMessageScheduler(bot, config.autoMessage);
+}
 
 function setupExpressApp(app) {
   // Mount admin API routes
@@ -26,6 +33,7 @@ async function startPolling() {
     console.log(`📊 Admin Dashboard disponible sur http://localhost:${port}/admin`);
   });
 
+  await enableAutoMessageScheduler();
   await bot.launch();
 }
 
@@ -51,6 +59,8 @@ async function startWebhook() {
     console.log(`   URL configurée : ${url}`);
     console.log(`📊 Admin Dashboard disponible sur /admin`);
   });
+
+  await enableAutoMessageScheduler();
 }
 
 (async () => {
@@ -67,5 +77,11 @@ async function startWebhook() {
 })();
 
 // Arrêt propre
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+process.once('SIGINT', () => {
+  stopAutoMessageScheduler();
+  bot.stop('SIGINT');
+});
+process.once('SIGTERM', () => {
+  stopAutoMessageScheduler();
+  bot.stop('SIGTERM');
+});

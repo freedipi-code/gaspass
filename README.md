@@ -65,6 +65,7 @@ Hostinger en mutualisé peut héberger Node.js — il faut activer **Node.js** d
    BTC_WALLET=bc1q...
    USDT_WALLET=T...
    USDT_NETWORK=TRC20
+   AUTO_MESSAGE_TIMEZONE=Africa/Douala
    ```
 6. **Bascule Prisma sur MySQL** : édite `prisma/schema.prisma` et change `provider = "mysql"`.
 7. Migrations + seed sur la base Hostinger :
@@ -76,6 +77,12 @@ Hostinger en mutualisé peut héberger Node.js — il faut activer **Node.js** d
 9. Vérifie : `https://bot.monshop.com/health` doit répondre `{ "ok": true }`.
 
 Telegram appellera automatiquement `https://bot.monshop.com/api/telegram/webhook` — la route est créée par Telegraf au démarrage.
+
+Le bot défini par `BOT_TOKEN` envoie aussi la photo promotionnelle et sa légende
+chaque jour à 09:00 (fuseau `AUTO_MESSAGE_TIMEZONE`, par défaut `Africa/Douala`)
+à tous les utilisateurs enregistrés après avoir interagi avec lui. Telegram interdit
+aux bots de commencer une conversation : chaque destinataire doit donc avoir ouvert
+ce bot et lui avoir envoyé `/start` au moins une fois.
 
 > 💡 Si Hostinger n'accepte pas Node.js sur ton offre, l'alternative la plus simple est de déployer le bot sur **Railway / Render / Fly.io** (free tier) et de laisser Hostinger héberger juste le dashboard admin plus tard.
 

@@ -20,6 +20,13 @@ const config = {
     btc: process.env.BTC_WALLET || '',
     ltc: process.env.LTC_WALLET || '',
   },
+  autoMessage: {
+    hour: 9,
+    minute: 0,
+    timeZone: process.env.AUTO_MESSAGE_TIMEZONE || 'Africa/Douala',
+    checkIntervalMs: 30 * 1000,
+    sendDelayMs: 50,
+  },
 };
 
 module.exports = config;
