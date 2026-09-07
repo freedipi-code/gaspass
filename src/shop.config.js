@@ -10,7 +10,7 @@ module.exports = {
   name: "Best of The Bay",
 
   // Detailed storefront heading displayed before the product listing
-  telegramUsername: "BESTOFTHEBAYOG",
+  telegramUsername: "BEST0FTHEBAYOG",
   signalUsername: "BESTOFTHEBAYCS.01",
   marketUrl: "https://t.me/NewSI420bot?start=v_botb",
   mediaUrl: "https://bestofthebay.net",
@@ -52,7 +52,7 @@ module.exports = {
   ownerStatusLine: "🟢 Online",  // overridden if you want dynamic status later
 
   // Footer
-  footerLink: "https://t.me/QueenTetrassit",
+  footerLink: "https://t.me/BEST0FTHEBAYOG",
   footerText: "Powered by SI Market",
 
   // About page command
