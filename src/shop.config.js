@@ -7,7 +7,16 @@
 
 module.exports = {
   // Display name shown in welcome message header
-  name: "Queen Tetras Shop",
+  name: "Best of The Bay",
+
+  // Detailed storefront heading displayed before the product listing
+  telegramUsername: "BESTOFTHEBAYOG",
+  signalUsername: "BESTOFTHEBAYCS.01",
+  marketUrl: "https://t.me/NewSI420bot?start=v_botb",
+  mediaUrl: "https://bestofthebay.net",
+  mediaLabel: "BESTOFTHEBAY.NET",
+  licenseLine: "LICENSED WORK / AUTHENTICS / REPLICAS / BOT ONLY",
+  bulkDiscountText: "-25 per p 5+ / -50 per p 10+ / Forward your cart to the CS account to acquire the bulk discount voucher / (5+ Unit orders please reach out to the CS account for current bulk shipping methods)",
 
   // Vendor name shown on product pages (-- by VendorName)
   vendorName: "QueenTetrassit",
@@ -50,7 +59,7 @@ module.exports = {
   aboutCommand: "/info",
 
   // Welcome cover image (path to local file OR public URL OR empty for text-only)
-  welcomeImage: "images/00.jpeg",
+  welcomeImage: "images/best-of-the-bay.jpeg",
 
   // Currency symbol
   currency: "$",

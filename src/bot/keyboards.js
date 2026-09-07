@@ -28,9 +28,26 @@ function formatPrice(amount) {
   return `${shop.currency}${dollars}.${centsStr}`;
 }
 
+function categoryDecoration(categoryName) {
+  const name = String(categoryName || 'Category');
+  const lower = name.toLowerCase();
+  let emoji = '🌸';
+
+  if (/light|indoor/.test(lower)) emoji = '🌸';
+  else if (/exotic/.test(lower)) emoji = '🌹';
+  else if (/small/.test(lower)) emoji = '🪷';
+  else if (/concentrate|extract/.test(lower)) emoji = '🍯';
+  else if (/disposable|vape|cart/.test(lower)) emoji = '🖊️';
+  else if (/edible/.test(lower)) emoji = '🍫';
+  else if (/metrc/.test(lower)) emoji = '⚖️';
+  else if (/preroll|pre-roll/.test(lower)) emoji = '🌿';
+
+  return `${name} ${emoji}`;
+}
+
 // ── Catalog keyboard (for /start storefront) ──
 
-function catalogKeyboard(page, totalPages, categoryFilter, subcategories, activeSubcategoryId) {
+function catalogKeyboard(page, totalPages, categoryFilter, categories, activeCategoryId) {
   const rows = [];
 
   // Navigation row matching Image 4 design: [ ⇐ Back ] [ > ] [ 2 >> ]
@@ -44,9 +61,8 @@ function catalogKeyboard(page, totalPages, categoryFilter, subcategories, active
       navRow.push(Markup.button.callback('>', `catalog:page:${page + 1}:${categoryFilter || 'all'}`));
       navRow.push(Markup.button.callback(`${totalPages} >>`, `catalog:page:${totalPages - 1}:${categoryFilter || 'all'}`));
     } else if (page === totalPages - 1) {
-      // replace back button or add it
-      navRow.unshift(Markup.button.callback('<< 1', `catalog:page:0:${categoryFilter || 'all'}`));
       navRow.push(Markup.button.callback('<', `catalog:page:${page - 1}:${categoryFilter || 'all'}`));
+      navRow.push(Markup.button.callback('1 <<', `catalog:page:0:${categoryFilter || 'all'}`));
     } else {
       // Middle page
       navRow.push(Markup.button.callback('<', `catalog:page:${page - 1}:${categoryFilter || 'all'}`));
@@ -56,22 +72,23 @@ function catalogKeyboard(page, totalPages, categoryFilter, subcategories, active
 
   rows.push(navRow);
 
-  // Subcategory filters below the navigation row (2 per row)
-  if (subcategories && subcategories.length > 0) {
-    const subcatButtons = subcategories.map((c) => {
-      const isActive = String(c.id) === String(activeSubcategoryId);
-      let label = c.name;
-      // Shorten common terms to fit nicely
-      label = label
-        .replace(/Replica/gi, 'Rep')
-        .replace(/Disposables/gi, 'Disposables')
-        .replace(/Disposable/gi, 'Dispo')
-        .replace(/Cartridges/gi, 'Carts')
-        .replace(/Premium/gi, 'Prem');
-      const activeLabel = isActive ? `✅ ${label}` : label;
+  // Every category stored in the database is immediately visible, like the
+  // reference storefront.
+  if (categories && categories.length > 0) {
+    const categoryButtons = categories.map((c) => {
+      const isActive = String(c.id) === String(activeCategoryId);
+      const decoratedLabel = categoryDecoration(c.name);
+      const activeLabel = isActive ? `✅ ${decoratedLabel}` : decoratedLabel;
       return Markup.button.callback(activeLabel, `catalog:cat:${c.id}`);
     });
-    rows.push(...chunk(subcatButtons, 2));
+
+    // Broad buttons like the reference, with only the final pair sharing a row.
+    if (categoryButtons.length > 2) {
+      rows.push(...categoryButtons.slice(0, -2).map((button) => [button]));
+      rows.push(categoryButtons.slice(-2));
+    } else {
+      rows.push(categoryButtons);
+    }
   }
 
   return Markup.inlineKeyboard(rows);
