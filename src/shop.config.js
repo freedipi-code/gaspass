@@ -7,7 +7,7 @@
 
 module.exports = {
   // Display name shown in welcome message header
-  name: "ALTERS WAREHOUSE",
+  name: "APPLE",
 
   // Vendor name shown on product pages (-- by VendorName)
   vendorName: "Phoenix",
@@ -18,7 +18,7 @@ module.exports = {
 
   // Welcome intro text (storefront style)
   welcomeText: [
-    "Welcome to Alters Warehouse.",
+    "Welcome to APPLE.",
   ].join("\n"),
 
   // Shipping policy line (1-2 short lines max)
@@ -44,7 +44,7 @@ module.exports = {
   aboutCommand: "/info",
 
   // Welcome cover image (path to local file OR public URL OR empty for text-only)
-  welcomeImage: "images/alters-home.jpeg",
+  welcomeImage: "images/apple-home.jpeg",
 
   // Currency code
   currency: "GBP",
