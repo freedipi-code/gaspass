@@ -5,6 +5,7 @@ const { catalogKeyboard } = require('../keyboards');
 
 const PRODUCTS_PER_PAGE = shop.productsPerPage || 5;
 const TELEGRAM_PHOTO_CAPTION_LIMIT = 1024;
+const PHOTO_CAPTION_SAFE_LIMIT = TELEGRAM_PHOTO_CAPTION_LIMIT - 44;
 
 // Generate a short product link command like /p1, /p2 etc.
 function productLink(index) {
@@ -66,7 +67,7 @@ function categorySlug(categoryName) {
 }
 
 // Build the storefront catalog text for a given page of products
-function buildCatalogText(products, page, totalPages, pageOffset, descriptionLimit = 72) {
+function buildCatalogText(products, page, totalPages, pageOffset, descriptionLimit = 72, nameLimit = 80) {
   const lines = [];
 
   if (products.length === 0) {
@@ -77,7 +78,7 @@ function buildCatalogText(products, page, totalPages, pageOffset, descriptionLim
     const p = products[i];
     const globalIndex = pageOffset + i;
 
-    lines.push(`<b>${escapeHtml(truncate(p.name, 80))}</b>`);
+    lines.push(`<b>${escapeHtml(truncate(p.name, nameLimit))}</b>`);
 
     if (p.description && descriptionLimit > 0) {
       lines.push(`<i>${escapeHtml(truncate(p.description, descriptionLimit))}</i>`);
@@ -127,6 +128,8 @@ async function getFilteredProducts(categoryFilter) {
 }
 
 function buildHomeIntro() {
+  if (shop.welcomeHtml) return shop.welcomeHtml;
+
   const hasDetailedBranding = shop.telegramUsername || shop.signalUsername || shop.marketUrl || shop.mediaUrl;
   if (!hasDetailedBranding) {
     return [
@@ -166,23 +169,40 @@ function buildHomeIntro() {
 
 function buildHomeCaption(products, pageOffset) {
   const intro = buildHomeIntro();
-  const footer = [
-    '********************************',
-    '<b>Shipping Policy, Refunds:</b> /info',
-    '<b>PGP:</b> /pgp_qtetra',
-  ].join('\n');
+  const footer = shop.showHomeFooter === false
+    ? ''
+    : [
+      '********************************',
+      '<b>Shipping Policy, Refunds:</b> /info',
+      '<b>PGP:</b> /pgp_qtetra',
+    ].join('\n');
 
   // Keep the complete branded introduction. Only product descriptions are
   // shortened when needed to respect Telegram's photo-caption limit.
-  for (const descriptionLimit of [64, 48, 32, 16, 0]) {
-    const productText = buildCatalogText(products, 0, 1, pageOffset, descriptionLimit);
+  const layouts = [
+    { descriptionLimit: 64, nameLimit: 80 },
+    { descriptionLimit: 48, nameLimit: 80 },
+    { descriptionLimit: 32, nameLimit: 70 },
+    { descriptionLimit: 16, nameLimit: 60 },
+    { descriptionLimit: 0, nameLimit: 50 },
+    { descriptionLimit: 0, nameLimit: 32 },
+  ];
+  for (const layout of layouts) {
+    const productText = buildCatalogText(
+      products,
+      0,
+      1,
+      pageOffset,
+      layout.descriptionLimit,
+      layout.nameLimit
+    );
     const caption = [intro, productText, footer].filter(Boolean).join('\n\n');
-    if (visibleTextLength(caption) <= TELEGRAM_PHOTO_CAPTION_LIMIT) return caption;
+    if (visibleTextLength(caption) <= PHOTO_CAPTION_SAFE_LIMIT) return caption;
   }
 
   return [
     intro,
-    buildCatalogText(products, 0, 1, pageOffset, 0),
+    buildCatalogText(products, 0, 1, pageOffset, 0, 32),
     footer,
   ].join('\n\n');
 }
@@ -190,7 +210,7 @@ function buildHomeCaption(products, pageOffset) {
 function buildPageCaption(products, page, totalPages, pageOffset) {
   for (const descriptionLimit of [72, 48, 24, 0]) {
     const caption = buildCatalogText(products, page, totalPages, pageOffset, descriptionLimit);
-    if (visibleTextLength(caption) <= TELEGRAM_PHOTO_CAPTION_LIMIT) return caption;
+    if (visibleTextLength(caption) <= PHOTO_CAPTION_SAFE_LIMIT) return caption;
   }
   return buildCatalogText(products, page, totalPages, pageOffset, 0);
 }

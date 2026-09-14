@@ -7,19 +7,50 @@
 
 module.exports = {
   // Display name shown in welcome message header
-  name: "Best of The Bay",
+  name: "Hash Heroes",
 
-  // Detailed storefront heading displayed before the product listing
-  telegramUsername: "BEST0FTHEBAYOG",
-  signalUsername: "BESTOFTHEBAYCS.01",
-  marketUrl: "https://t.me/NewSI420bot?start=v_botb",
-  mediaUrl: "https://bestofthebay.net",
-  mediaLabel: "BESTOFTHEBAY.NET",
-  licenseLine: "LICENSED WORK / AUTHENTICS / REPLICAS / BOT ONLY",
-  bulkDiscountText: "-25 per p 5+ / -50 per p 10+ / Forward your cart to the CS account to acquire the bulk discount voucher / (5+ Unit orders please reach out to the CS account for current bulk shipping methods)",
+  // Complete formatted introduction shown before the database product listing
+  welcomeHtml: [
+    "<b>HEROES</b>",
+    "",
+    "<b>***AS OF 7/9/26 - SHIPPING",
+    "CHARGE IS NOW $15***</b>",
+    "",
+    "<b>Our only OFFICIAL TELEGRAM AS",
+    "OF 7/8/26 IS</b>",
+    '<a href="https://t.me/HEADiestOFFICIAL">@HEADiestOFFICIAL</a>',
+    '<b>CHAT/MENU LINK :</b> <a href="https://t.me/unfairfades">https://t.me/unfairfades</a>',
+    "",
+    "<b>WE DO NOT HAVE ANY OTHER",
+    "TELEGRAM ACCOUNTS OR",
+    "CHANNELS OTHER THAN THOSE",
+    "LISTED ABOVE !</b>",
+    "",
+    "<b>*******OUR STORE ORDER",
+    "MINIMIUM is $100*******</b>",
+    "",
+    "<u><i><b>orders placed under the minimum",
+    "will be subject to refund!</b></i></u>",
+    "",
+    "FOR ROSIN PURCHASES SPLITS GO",
+    "AS STATED --",
+    "4g - CAN SPLIT 2 WAYS",
+    "7g - CAN SPLIT 2 WAYS",
+    "14g - CAN SPLIT 4 WAYS",
+    "28g - CAN SPLIT 4 WAYS",
+    "<b>SPLITS MUST ALL BE WITHIN THE",
+    "SAME TIER !!!!!!!!",
+    "PLACE IT IN YOUR ORDER NOTES !!</b>",
+    "",
+    "Welcome to Hash Heroes ! thanks",
+    "for checking out the store.",
+    "<b>(Telegram OR Potato FOR DIRECT",
+    "ORDERS OR QUESTIONS!)</b>",
+  ].join("\n"),
+  showHomeFooter: false,
 
   // Vendor name shown on product pages (-- by VendorName)
-  vendorName: "QueenTetrassit",
+  vendorName: "Hash Heroes",
   vendorCommand: "/vendor",
 
   // Emoji prepended/appended to the shop name in welcome
@@ -27,7 +58,7 @@ module.exports = {
 
   // Welcome intro text (storefront style)
   welcomeText: [
-    "Welcome to Queen Tetra.",
+    "Welcome to Hash Heroes.",
     "",
     "All orders are shipped within 24-48hrs and traking will be provided upon request. "
     + "$10 shipping on all orders. "
@@ -52,14 +83,14 @@ module.exports = {
   ownerStatusLine: "🟢 Online",  // overridden if you want dynamic status later
 
   // Footer
-  footerLink: "https://t.me/BEST0FTHEBAYOG",
+  footerLink: "https://t.me/HEADiestOFFICIAL",
   footerText: "Powered by SI Market",
 
   // About page command
   aboutCommand: "/info",
 
   // Welcome cover image (path to local file OR public URL OR empty for text-only)
-  welcomeImage: "images/best-of-the-bay.jpeg",
+  welcomeImage: "images/hashheroes.jpeg",
 
   // Currency symbol
   currency: "$",
