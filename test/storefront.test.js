@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const { productDetailKeyboard } = require('../src/bot/keyboards');
 const { buildProductCaption, resolveProductImage } = require('../src/bot/handlers/products');
+const { resolveImageWithFallback } = require('../src/utils/image');
 const { buildCartView } = require('../src/bot/handlers/cart');
 const { buildWelcomeText } = require('../src/bot/handlers/start');
 const checkoutScene = require('../src/bot/scenes/checkout');
@@ -19,13 +20,28 @@ test('home caption matches the Tommy Sweets reference', () => {
   assert.doesNotMatch(caption, /Linked web account/);
 });
 
-test('products without a usable photo use the Tommy Walkers fallback', () => {
+test('product pages preserve existing images and otherwise use the Tommy Walkers fallback', () => {
   for (const image of [null, '', 'images/does-not-exist.jpeg']) {
     const resolved = resolveProductImage(image);
     assert.ok(resolved.photoSrc);
     assert.equal(resolved.cacheKey, 'images/tommy-walkers-home.jpeg');
     assert.equal(resolved.usesFallback, true);
   }
+
+  const existing = resolveProductImage('images/tommy-walkers-home.jpeg');
+  assert.ok(existing.photoSrc);
+  assert.equal(existing.cacheKey, 'images/tommy-walkers-home.jpeg');
+  assert.equal(existing.usesFallback, false);
+});
+
+test('shared image resolver never replaces an existing image', () => {
+  const resolved = resolveImageWithFallback(
+    'images/tommy-walkers-home.jpeg',
+    'images/does-not-exist.jpeg'
+  );
+  assert.ok(resolved.photoSrc);
+  assert.equal(resolved.cacheKey, 'images/tommy-walkers-home.jpeg');
+  assert.equal(resolved.usesFallback, false);
 });
 
 test('product detail mirrors the selected and in-cart states', () => {

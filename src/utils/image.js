@@ -49,4 +49,17 @@ function resolveImage(value) {
   return null;
 }
 
-module.exports = { resolveImage, rememberTelegramPhoto, PROJECT_ROOT };
+function resolveImageWithFallback(value, fallbackValue) {
+  const primary = resolveImage(value);
+  if (primary) {
+    return { photoSrc: primary, cacheKey: value, usesFallback: false };
+  }
+
+  return {
+    photoSrc: resolveImage(fallbackValue),
+    cacheKey: fallbackValue,
+    usesFallback: true,
+  };
+}
+
+module.exports = { resolveImage, resolveImageWithFallback, rememberTelegramPhoto, PROJECT_ROOT };

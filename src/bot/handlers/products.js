@@ -1,7 +1,7 @@
 const { Markup } = require('telegraf');
 const prisma = require('../../db/client');
 const cartService = require('../../services/cart.service');
-const { resolveImage, rememberTelegramPhoto } = require('../../utils/image');
+const { resolveImageWithFallback, rememberTelegramPhoto } = require('../../utils/image');
 const { isMessageNotModifiedError } = require('../../utils/telegram');
 const shop = require('../../shop.config');
 const { productDetailKeyboard, starsVisual, formatPrice } = require('../keyboards');
@@ -20,17 +20,8 @@ function buildProductCaption(product, index, total, inCartQuantity = 0) {
 }
 
 function resolveProductImage(image) {
-  const productPhoto = resolveImage(image);
-  if (productPhoto) {
-    return { photoSrc: productPhoto, cacheKey: image, usesFallback: false };
-  }
-
-  const fallbackImage = shop.productFallbackImage || shop.welcomeImage;
-  return {
-    photoSrc: resolveImage(fallbackImage),
-    cacheKey: fallbackImage,
-    usesFallback: true,
-  };
+  const fallbackImage = shop.storefrontImage || shop.productFallbackImage || shop.welcomeImage;
+  return resolveImageWithFallback(image, fallbackImage);
 }
 
 // Exported so catalog.js can call it directly

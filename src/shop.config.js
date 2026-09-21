@@ -49,7 +49,10 @@ module.exports = {
   // Welcome cover image (path to local file OR public URL OR empty for text-only)
   welcomeImage: "images/tommy-walkers-home.jpeg",
 
-  // Image shown on product pages when a product has no usable photo
+  // Shared branding image used across the storefront (except cart/checkout)
+  storefrontImage: "images/tommy-walkers-home.jpeg",
+
+  // Kept as an explicit fallback for product rendering
   productFallbackImage: "images/tommy-walkers-home.jpeg",
 
   // Currency code

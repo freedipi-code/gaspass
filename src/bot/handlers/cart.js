@@ -2,7 +2,7 @@ const { Markup } = require('telegraf');
 const cartService = require('../../services/cart.service');
 const shop = require('../../shop.config');
 const { formatPrice, chunk } = require('../keyboards');
-const { resolveImage, rememberTelegramPhoto } = require('../../utils/image');
+const { resolveImageWithFallback, rememberTelegramPhoto } = require('../../utils/image');
 const { isMessageNotModifiedError } = require('../../utils/telegram');
 
 function buildCartView(cart) {
@@ -56,7 +56,7 @@ async function showCart(ctx) {
   
   // Branded cart banner matching the storefront flow.
   const banner = 'images/alters-cart.png';
-  const photoSrc = resolveImage(banner);
+  const { photoSrc, cacheKey } = resolveImageWithFallback(banner, shop.storefrontImage);
   const opts = {
     parse_mode: 'Markdown',
     ...keyboard,
@@ -70,12 +70,12 @@ async function showCart(ctx) {
           { type: 'photo', media: photoSrc, caption: text, parse_mode: 'Markdown' },
           opts
         );
-        rememberTelegramPhoto(banner, edited);
+        rememberTelegramPhoto(cacheKey, edited);
       } else {
         await ctx.deleteMessage().catch(() => {});
         if (photoSrc) {
           const sent = await ctx.replyWithPhoto(photoSrc, { caption: text, ...opts });
-          rememberTelegramPhoto(banner, sent);
+          rememberTelegramPhoto(cacheKey, sent);
         } else {
           await ctx.reply(text, opts);
         }
@@ -88,7 +88,7 @@ async function showCart(ctx) {
 
   if (photoSrc) {
     const sent = await ctx.replyWithPhoto(photoSrc, { caption: text, ...opts });
-    rememberTelegramPhoto(banner, sent);
+    rememberTelegramPhoto(cacheKey, sent);
   } else {
     await ctx.reply(text, opts);
   }

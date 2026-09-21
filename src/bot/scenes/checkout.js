@@ -2,7 +2,7 @@ const { Scenes, Markup } = require('telegraf');
 const cartService = require('../../services/cart.service');
 const shop = require('../../shop.config');
 const { formatPrice } = require('../keyboards');
-const { resolveImage, rememberTelegramPhoto } = require('../../utils/image');
+const { resolveImageWithFallback, rememberTelegramPhoto } = require('../../utils/image');
 const { isMessageNotModifiedError } = require('../../utils/telegram');
 
 const STEPS = {
@@ -109,7 +109,7 @@ async function renderStep(ctx) {
   }
 
   // Use sendOrEditHelper format
-  const photoSrc = resolveImage(banner);
+  const { photoSrc, cacheKey } = resolveImageWithFallback(banner, shop.storefrontImage);
   const opts = {
     parse_mode: 'Markdown',
     reply_markup: { inline_keyboard: keyboard },
@@ -123,12 +123,12 @@ async function renderStep(ctx) {
           { type: 'photo', media: photoSrc, caption: text, parse_mode: 'Markdown' },
           opts
         );
-        rememberTelegramPhoto(banner, edited);
+        rememberTelegramPhoto(cacheKey, edited);
       } else {
         await ctx.deleteMessage().catch(() => {});
         if (photoSrc) {
           const sent = await ctx.replyWithPhoto(photoSrc, { caption: text, ...opts });
-          rememberTelegramPhoto(banner, sent);
+          rememberTelegramPhoto(cacheKey, sent);
         }
         else await ctx.reply(text, opts);
       }
@@ -140,7 +140,7 @@ async function renderStep(ctx) {
 
   if (photoSrc) {
     const sent = await ctx.replyWithPhoto(photoSrc, { caption: text, ...opts });
-    rememberTelegramPhoto(banner, sent);
+    rememberTelegramPhoto(cacheKey, sent);
   } else {
     await ctx.reply(text, opts);
   }

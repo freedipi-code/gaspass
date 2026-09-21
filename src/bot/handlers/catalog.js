@@ -1,6 +1,6 @@
 const prisma = require('../../db/client');
 const shop = require('../../shop.config');
-const { resolveImage, rememberTelegramPhoto } = require('../../utils/image');
+const { resolveImageWithFallback, rememberTelegramPhoto } = require('../../utils/image');
 const { isMessageNotModifiedError } = require('../../utils/telegram');
 const { formatPrice, chunk } = require('../keyboards');
 const { Markup } = require('telegraf');
@@ -24,7 +24,7 @@ async function cached(key, loader) {
 
 // Helper to send or edit a banner message
 async function sendOrEditWithBanner(ctx, photoPath, text, keyboard) {
-  const photoSrc = resolveImage(photoPath);
+  const { photoSrc, cacheKey } = resolveImageWithFallback(photoPath, shop.storefrontImage);
   const opts = {
     parse_mode: 'Markdown',
     ...keyboard,
@@ -39,13 +39,13 @@ async function sendOrEditWithBanner(ctx, photoPath, text, keyboard) {
           { type: 'photo', media: photoSrc, caption: text, parse_mode: 'Markdown' },
           opts
         );
-        rememberTelegramPhoto(photoPath, edited);
+        rememberTelegramPhoto(cacheKey, edited);
       } else {
         // Delete and send fresh to show photo correctly
         await ctx.deleteMessage().catch(() => {});
         if (photoSrc) {
           const sent = await ctx.replyWithPhoto(photoSrc, { caption: text, ...opts });
-          rememberTelegramPhoto(photoPath, sent);
+          rememberTelegramPhoto(cacheKey, sent);
         } else {
           await ctx.reply(text, opts);
         }
@@ -59,7 +59,7 @@ async function sendOrEditWithBanner(ctx, photoPath, text, keyboard) {
 
   if (photoSrc) {
     const sent = await ctx.replyWithPhoto(photoSrc, { caption: text, ...opts });
-    rememberTelegramPhoto(photoPath, sent);
+    rememberTelegramPhoto(cacheKey, sent);
   } else {
     await ctx.reply(text, opts);
   }

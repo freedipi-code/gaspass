@@ -3,8 +3,9 @@ const config = require('../../config');
 const orderService = require('../../services/order.service');
 const notifyService = require('../../services/notify.service');
 const cryptoService = require('../../services/crypto.service');
+const shop = require('../../shop.config');
 const { formatPrice } = require('../keyboards');
-const { resolveImage, rememberTelegramPhoto } = require('../../utils/image');
+const { resolveImageWithFallback, rememberTelegramPhoto } = require('../../utils/image');
 
 function register(bot) {
   bot.action('checkout', async (ctx) => {
@@ -96,7 +97,7 @@ function register(bot) {
 
     // Send the checkout confirmation banner
     const banner = 'images/alters-payment.png';
-    const photoSrc = resolveImage(banner);
+    const { photoSrc, cacheKey } = resolveImageWithFallback(banner, shop.storefrontImage);
     const opts = {
       caption: message,
       parse_mode: 'Markdown',
@@ -106,7 +107,7 @@ function register(bot) {
     await ctx.deleteMessage().catch(() => {});
     if (photoSrc) {
       const sent = await ctx.replyWithPhoto(photoSrc, opts);
-      rememberTelegramPhoto(banner, sent);
+      rememberTelegramPhoto(cacheKey, sent);
     } else {
       await ctx.reply(message, opts);
     }
