@@ -19,6 +19,20 @@ function buildProductCaption(product, index, total, inCartQuantity = 0) {
   return lines.join('\n');
 }
 
+function resolveProductImage(image) {
+  const productPhoto = resolveImage(image);
+  if (productPhoto) {
+    return { photoSrc: productPhoto, cacheKey: image, usesFallback: false };
+  }
+
+  const fallbackImage = shop.productFallbackImage || shop.welcomeImage;
+  return {
+    photoSrc: resolveImage(fallbackImage),
+    cacheKey: fallbackImage,
+    usesFallback: true,
+  };
+}
+
 // Exported so catalog.js can call it directly
 async function showProductDetail(ctx, options = {}) {
   // If called from a regex match or directly
@@ -83,7 +97,7 @@ async function showProductDetail(ctx, options = {}) {
     ...keyboard,
   };
 
-  const photoSrc = resolveImage(product.image);
+  const { photoSrc, cacheKey } = resolveProductImage(product.image);
 
   try {
     if (photoSrc) {
@@ -92,10 +106,10 @@ async function showProductDetail(ctx, options = {}) {
           { type: 'photo', media: photoSrc, caption: caption, parse_mode: 'Markdown' },
           opts
         );
-        rememberTelegramPhoto(product.image, edited);
+        rememberTelegramPhoto(cacheKey, edited);
       } else {
         const sent = await ctx.replyWithPhoto(photoSrc, { caption, ...opts });
-        rememberTelegramPhoto(product.image, sent);
+        rememberTelegramPhoto(cacheKey, sent);
       }
     } else {
       if (ctx.callbackQuery?.message?.photo) {
@@ -166,4 +180,4 @@ function register(bot) {
   bot.hears('/vendor', (ctx) => ctx.reply('Vendor info coming soon.'));
 }
 
-module.exports = { register, showProductDetail, buildProductCaption };
+module.exports = { register, showProductDetail, buildProductCaption, resolveProductImage };

@@ -2,9 +2,31 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { productDetailKeyboard } = require('../src/bot/keyboards');
-const { buildProductCaption } = require('../src/bot/handlers/products');
+const { buildProductCaption, resolveProductImage } = require('../src/bot/handlers/products');
 const { buildCartView } = require('../src/bot/handlers/cart');
+const { buildWelcomeText } = require('../src/bot/handlers/start');
 const checkoutScene = require('../src/bot/scenes/checkout');
+
+test('home caption matches the Tommy Sweets reference', () => {
+  const caption = buildWelcomeText({ session: {} });
+
+  assert.match(caption, /TOMMY SWEETS/);
+  assert.match(caption, /BTC, LTC, XMR/);
+  assert.match(caption, /5\.0\/5/);
+  assert.match(caption, /1967 sales/);
+  assert.match(caption, /UK/);
+  assert.match(caption, /Verification phrase not set yet/);
+  assert.doesNotMatch(caption, /Linked web account/);
+});
+
+test('products without a usable photo use the Tommy Walkers fallback', () => {
+  for (const image of [null, '', 'images/does-not-exist.jpeg']) {
+    const resolved = resolveProductImage(image);
+    assert.ok(resolved.photoSrc);
+    assert.equal(resolved.cacheKey, 'images/tommy-walkers-home.jpeg');
+    assert.equal(resolved.usesFallback, true);
+  }
+});
 
 test('product detail mirrors the selected and in-cart states', () => {
   const product = { id: 7, name: 'Sample Product', price: 34.99 };

@@ -7,7 +7,7 @@
 
 module.exports = {
   // Display name shown in welcome message header
-  name: "APPLE",
+  name: "TOMMY SWEETS",
 
   // Vendor name shown on product pages (-- by VendorName)
   vendorName: "Phoenix",
@@ -18,11 +18,14 @@ module.exports = {
 
   // Welcome intro text (storefront style)
   welcomeText: [
-    "Welcome to APPLE.",
+    "Welcome to TOMMY SWEETS.",
   ].join("\n"),
 
   // Shipping policy line (1-2 short lines max)
-  shippingLine: "📦 Worldwide",
+  paymentLine: "💰 BTC, LTC, XMR",
+  ratingLine: "⭐ 5.0/5",
+  salesLine: "📦 1967 sales",
+  shippingLine: "🚚 UK",
   dispatchLine: "⏰ All orders placed before 1pm are dispatched the same day for fast and reliable delivery.",
 
   // Bulk enquiries line
@@ -44,7 +47,10 @@ module.exports = {
   aboutCommand: "/info",
 
   // Welcome cover image (path to local file OR public URL OR empty for text-only)
-  welcomeImage: "images/apple-home.jpeg",
+  welcomeImage: "images/tommy-walkers-home.jpeg",
+
+  // Image shown on product pages when a product has no usable photo
+  productFallbackImage: "images/tommy-walkers-home.jpeg",
 
   // Currency code
   currency: "GBP",

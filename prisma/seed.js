@@ -2,15 +2,19 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  // Reset (dev only)
-  await prisma.review.deleteMany();
-  await prisma.orderItem.deleteMany();
-  await prisma.order.deleteMany();
-  await prisma.cartItem.deleteMany();
-  await prisma.cart.deleteMany();
-  await prisma.productVariant.deleteMany();
-  await prisma.product.deleteMany();
-  await prisma.category.deleteMany();
+  // Never erase a configured database implicitly. Seeding is only safe when
+  // the catalog is empty; existing users, carts, and orders are preserved.
+  const [existingCategories, existingProducts] = await Promise.all([
+    prisma.category.count(),
+    prisma.product.count(),
+  ]);
+
+  if (existingCategories > 0 || existingProducts > 0) {
+    console.log(
+      `ℹ️ Seed skipped: database already contains ${existingCategories} categories and ${existingProducts} products.`
+    );
+    return;
+  }
 
   // --- Root Categories ---
   const flowers = await prisma.category.create({ data: { name: 'FLOWERS' } });

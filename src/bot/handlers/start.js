@@ -19,17 +19,17 @@ function buildWelcomeText(ctx) {
   const verification = ctx.session?.verificationPhrase 
     ? `*${ctx.session.verificationPhrase}*`
     : 'not set yet';
+  const divider = '────────────────────';
   return [
     `♦ *${shop.name}*`,
-    `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯`,
-    `🌑 BTC, LTC`,
-    `⭐ 4.9/5`,
-    `🧾 2615 sales`,
+    divider,
+    shop.paymentLine,
+    shop.ratingLine,
+    shop.salesLine,
     shop.shippingLine,
-    `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯`,
-    `🔗 Linked web account: not linked`,
+    divider,
     `🔐 Verification phrase ${verification}`,
-    `⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯`,
+    divider,
     `Compare this phrase across legit shop bots and your signed-in web account.`,
     shop.footerLink
       ? `[${shop.footerText}](${shop.footerLink})`
@@ -112,4 +112,4 @@ function register(bot) {
   });
 }
 
-module.exports = { register, showHome };
+module.exports = { register, showHome, buildWelcomeText };
