@@ -24,18 +24,24 @@ npm run dev
 Pour récupérer ton **BOT_TOKEN** : ouvre Telegram, parle à `@BotFather`, fais `/newbot`.
 Pour récupérer ton **ADMIN_ID** : parle à `@userinfobot`, copie le numérique.
 
+Définis aussi `SECURITY_MARK_KEY` avec une longue valeur aléatoire et stable en
+production. Elle chiffre les phrases des marques de sécurité en base. Si elle
+n'est pas renseignée, le bot utilise `BOT_TOKEN` comme clé de secours.
+
 ## 2. Tester le bot
 
 Dans Telegram, ouvre ton bot puis envoie `/start`.
 
 Parcours :
 
-1. Choisis une catégorie (ex. *Mode → Homme → Sneakers*).
-2. Ouvre un produit, *Ajouter au panier*.
-3. *🛒 Voir Panier* → *✅ Commander*.
-4. Saisis nom, adresse, notes.
-5. Choisis **BTC** ou **USDT**.
-6. Le bot affiche le wallet ; envoie capture / hash → relayé à l'admin.
+1. À la première utilisation, choisis un emoji puis une phrase secrète et
+   enregistre ta marque de sécurité.
+2. Choisis une catégorie (ex. *Mode → Homme → Sneakers*).
+3. Ouvre un produit, *Ajouter au panier*.
+4. *🛒 Voir Panier* → *✅ Commander*.
+5. Saisis nom, adresse, notes.
+6. Choisis **BTC** ou **USDT**.
+7. Le bot affiche le wallet ; envoie capture / hash → relayé à l'admin.
 
 L'admin (toi, via `ADMIN_ID`) reçoit en MP :
 - la nouvelle commande (récap + client + montant)

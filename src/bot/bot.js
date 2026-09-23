@@ -13,6 +13,8 @@ const supportHandler = require('./handlers/support');
 const stubsHandler = require('./handlers/stubs');
 const checkoutScene = require('./scenes/checkout');
 const paymentHandler = require('./handlers/payment');
+const securityMarkHandler = require('./handlers/security-mark');
+const securityMarkService = require('../services/security-mark.service');
 
 const bot = new Telegraf(config.botToken);
 
@@ -37,13 +39,33 @@ bot.use(async (ctx, next) => {
 // Sessions + scenes (for the multi-step checkout)
 const stage = new Scenes.Stage([checkoutScene]);
 bot.use(session());
+
+// A user must finish the security-mark setup before any storefront route is
+// available. Security callbacks and the phrase message itself pass through.
+bot.use(async (ctx, next) => {
+  if (!ctx.from || securityMarkService.getSecurityMark(ctx.state.user)) return next();
+
+  const action = ctx.callbackQuery?.data || '';
+  const isSecurityAction = action.startsWith('security:');
+  const isPhraseEntry = Boolean(
+    ['phrase', 'preview'].includes(ctx.session?.securityMark?.step) &&
+    ctx.message?.text &&
+    !ctx.message.text.startsWith('/')
+  );
+  if (isSecurityAction || isPhraseEntry) return next();
+
+  return securityMarkHandler.beginSetup(ctx, { edit: Boolean(ctx.callbackQuery) });
+});
+
 bot.use(stage.middleware());
 
 // Handler registration order matters for catch-all listeners (text/photo/document):
+// - security mark: intercepts ONLY while a secret phrase is being entered
 // - support: intercepts ONLY when ctx.session.awaitingSupport is true, else next()
 // - payment: intercepts ONLY when ctx.session.awaitingProofFor is set, else next()
 // All button/command handlers below register before these catch-alls.
 catalogHandler.register(bot);
+securityMarkHandler.register(bot);
 startHandler.register(bot);
 categoriesHandler.register(bot);
 productsHandler.register(bot);

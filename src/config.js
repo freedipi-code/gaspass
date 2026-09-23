@@ -8,6 +8,9 @@ function required(name) {
 
 const config = {
   botToken: required('BOT_TOKEN'),
+  // Used to encrypt security-mark phrases at rest. Set SECURITY_MARK_KEY in
+  // production so phrases remain decryptable if the Telegram token changes.
+  securityMarkKey: process.env.SECURITY_MARK_KEY || process.env.BOT_TOKEN,
   adminId: required('ADMIN_ID'),
   mode: process.env.BOT_MODE || 'polling', // 'polling' | 'webhook'
   webhook: {

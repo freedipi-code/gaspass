@@ -34,6 +34,20 @@ function cartLabel(summary) {
   return `🛒 View Cart (${count} product${count !== 1 ? 's' : ''}, ${formatPrice(total)})`;
 }
 
+function styledCallback(text, callbackData, style) {
+  return { ...Markup.button.callback(text, callbackData), ...(style ? { style } : {}) };
+}
+
+function styledUrl(text, url, style) {
+  return { ...Markup.button.url(text, url), ...(style ? { style } : {}) };
+}
+
+function externalLinkButton(text, url, fallbackAction) {
+  return url
+    ? styledUrl(`${text} ↗`, url)
+    : Markup.button.callback(`${text} ↗`, fallbackAction);
+}
+
 // ── Catalog keyboard (for /start storefront) ──
 
 function catalogKeyboard(page, totalPages, categories, categoryFilter) {
@@ -138,31 +152,40 @@ function productDetailKeyboard(product, variants, productIndex, totalProducts, c
 // ── Home menu (simplified for storefront) ──
 
 const homeMenu = (cartSummary = { count: 0, total: 0 }) => {
+  const reviewsLabel = shop.reviewCount == null
+    ? '🌟 Reviews'
+    : `🌟 Reviews (${shop.reviewCount})`;
+
   const rows = [
-    [Markup.button.callback('🛍️ Browse Products', 'categories:root')],
-    [Markup.button.callback('🎫 Support Tickets', 'support')],
-    [Markup.button.callback('📣 News Feed', 'info')],
+    [styledCallback('🛍️ Browse Products', 'categories:root', 'primary')],
+    [styledCallback('🎫 Support Tickets', 'support', 'success')],
     [
+      shop.channelUrl
+        ? Markup.button.url('📣 News Feed', shop.channelUrl)
+        : Markup.button.callback('📣 News Feed', 'info'),
+    ],
+    [
+      Markup.button.callback(reviewsLabel, 'reviews'),
       Markup.button.callback('📋 My Orders', 'orders'),
     ],
     [
+      Markup.button.callback('🔐 PGP Key', 'pgp:key'),
       Markup.button.callback('📦 Track Order', 'orders'),
-      Markup.button.callback('🤔 Help', 'help:menu'),
     ],
+    [
+      Markup.button.callback('🤔 Help', 'help:menu'),
+      Markup.button.callback('🛡️ Security Mark', 'security:mark'),
+    ],
+    [Markup.button.callback('🎁 My Referrals', 'referrals')],
     [Markup.button.callback(cartLabel(cartSummary), 'cart')],
   ];
 
   rows.push([
-    shop.websiteUrl
-      ? Markup.button.url(`🔗 ${shop.websiteLabel} ↗`, shop.websiteUrl)
-      : Markup.button.callback(`🔗 ${shop.websiteLabel} ↗`, 'website'),
+    externalLinkButton(`👥 ${shop.groupLabel}`, shop.groupUrl, 'group'),
   ]);
   rows.push([
-    shop.groupUrl
-      ? Markup.button.url(`👥 ${shop.groupLabel} ↗`, shop.groupUrl)
-      : Markup.button.callback(`👥 ${shop.groupLabel} ↗`, 'group'),
+    externalLinkButton(`🔄 ${shop.backupBotLabel}`, shop.backupBotUrl, 'backup:bot'),
   ]);
-  if (shop.channelUrl) rows.push([Markup.button.url(`📣 ${shop.channelLabel} ↗`, shop.channelUrl)]);
 
   return Markup.inlineKeyboard(rows);
 };

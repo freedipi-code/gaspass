@@ -17,8 +17,11 @@ function comingSoon(title) {
 
 function register(bot) {
   bot.action('wishlist', comingSoon('⭐ *Wishlist*'));
-  bot.action('website', comingSoon('🔗 *Website*'));
   bot.action('group', comingSoon('👥 *Element Group*'));
+  bot.action('reviews', comingSoon('🌟 *Reviews*'));
+  bot.action('pgp:key', comingSoon('🔐 *PGP Key*'));
+  bot.action('referrals', comingSoon('🎁 *My Referrals*'));
+  bot.action('backup:bot', comingSoon('🔄 *Backup Bot*'));
 }
 
 module.exports = { register };

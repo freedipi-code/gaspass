@@ -5,6 +5,16 @@ const prisma = require('../db/client');
 // Middleware to parse JSON bodies
 router.use(express.json());
 
+function normalizeCategoryIds(body) {
+  const raw = Array.isArray(body.categoryIds)
+    ? body.categoryIds
+    : body.categoryId !== undefined
+      ? [body.categoryId]
+      : undefined;
+  if (raw === undefined) return undefined;
+  return [...new Set(raw.map(Number).filter((id) => Number.isInteger(id) && id > 0))];
+}
+
 // --- CATEGORIES API ---
 
 // List all categories
@@ -80,7 +90,7 @@ router.get('/products', async (req, res) => {
   try {
     const products = await prisma.product.findMany({
       include: {
-        category: true,
+        categories: { orderBy: { id: 'asc' } },
         variants: { orderBy: { sortOrder: 'asc' } },
       },
       orderBy: { id: 'desc' },
@@ -94,10 +104,11 @@ router.get('/products', async (req, res) => {
 // Create product
 router.post('/products', async (req, res) => {
   try {
-    const { name, price, description, stock, image, categoryId, active } = req.body;
+    const { name, price, description, stock, image, active } = req.body;
+    const categoryIds = normalizeCategoryIds(req.body);
     if (!name) return res.status(400).json({ error: 'Name is required' });
     if (price === undefined) return res.status(400).json({ error: 'Price is required' });
-    if (!categoryId) return res.status(400).json({ error: 'Category is required' });
+    if (!categoryIds?.length) return res.status(400).json({ error: 'At least one category is required' });
 
     const newProduct = await prisma.product.create({
       data: {
@@ -106,9 +117,10 @@ router.post('/products', async (req, res) => {
         description: description || null,
         stock: parseInt(stock, 10) || 0,
         image: image || null,
-        categoryId: Number(categoryId),
+        categories: { connect: categoryIds.map((id) => ({ id })) },
         active: active !== undefined ? Boolean(active) : true,
       },
+      include: { categories: true },
     });
     res.json(newProduct);
   } catch (error) {
@@ -120,7 +132,11 @@ router.post('/products', async (req, res) => {
 router.put('/products/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { name, price, description, stock, image, categoryId, active } = req.body;
+    const { name, price, description, stock, image, active } = req.body;
+    const categoryIds = normalizeCategoryIds(req.body);
+    if (categoryIds !== undefined && categoryIds.length === 0) {
+      return res.status(400).json({ error: 'At least one category is required' });
+    }
 
     const updated = await prisma.product.update({
       where: { id },
@@ -130,9 +146,12 @@ router.put('/products/:id', async (req, res) => {
         description: description !== undefined ? description : undefined,
         stock: stock !== undefined ? parseInt(stock, 10) : undefined,
         image: image !== undefined ? image : undefined,
-        categoryId: categoryId !== undefined ? Number(categoryId) : undefined,
+        categories: categoryIds === undefined
+          ? undefined
+          : { set: categoryIds.map((categoryId) => ({ id: categoryId })) },
         active: active !== undefined ? Boolean(active) : undefined,
       },
+      include: { categories: true },
     });
     res.json(updated);
   } catch (error) {

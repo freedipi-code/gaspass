@@ -384,6 +384,38 @@
       cursor: pointer;
     }
 
+    .category-checkbox-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.55rem;
+      max-height: 190px;
+      overflow-y: auto;
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--glass-border);
+      border-radius: 10px;
+    }
+
+    .category-checkbox-item {
+      display: flex !important;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0 !important;
+      padding: 0.4rem 0.5rem;
+      border-radius: 7px;
+      cursor: pointer;
+    }
+
+    .category-checkbox-item:hover {
+      background: var(--glass-hover);
+    }
+
+    .category-checkbox-item input {
+      width: 17px;
+      height: 17px;
+      accent-color: var(--primary);
+    }
+
     .modal-footer {
       display: flex;
       justify-content: flex-end;
@@ -757,10 +789,8 @@
           <input type="number" id="prod-stock" value="999">
         </div>
         <div class="form-group">
-          <label for="prod-category">Category *</label>
-          <select id="prod-category" class="form-control" required>
-            <option value="">Select a category</option>
-          </select>
+          <label>Categories * <span style="font-weight: 400;">(select one or more)</span></label>
+          <div id="prod-categories" class="category-checkbox-list"></div>
         </div>
         <div class="form-group">
           <label for="prod-image">Image URL / Path</label>
@@ -910,7 +940,7 @@
         tr.innerHTML = `
           <td>${img}</td>
           <td style="font-weight: 500;">${escapeHtml(p.name)}</td>
-          <td style="color: var(--text-muted);">${escapeHtml(p.category?.name || 'Unassigned')}</td>
+          <td style="color: var(--text-muted);">${p.categories?.length ? p.categories.map(c => escapeHtml(c.name)).join(', ') : 'Unassigned'}</td>
           <td>${priceDisplay}</td>
           <td>${variantsDisplay}</td>
           <td>${p.stock}</td>
@@ -926,16 +956,30 @@
       });
     }
 
-    function populateCategoryDropdowns() {
-      const dropdown = document.getElementById('prod-category');
-      dropdown.innerHTML = '<option value="">Select a category</option>';
+    function populateCategoryDropdowns(selectedIds = []) {
+      const container = document.getElementById('prod-categories');
+      const selected = new Set(selectedIds.map(Number));
+      container.innerHTML = '';
+
+      if (categories.length === 0) {
+        container.innerHTML = '<span style="color: var(--text-muted);">Create a category first.</span>';
+        return;
+      }
 
       categories.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id;
-        const parentPrefix = c.parent ? `${escapeHtml(c.parent.name)} ➔ ` : '';
-        opt.innerText = `${parentPrefix}${escapeHtml(c.name)}`;
-        dropdown.appendChild(opt);
+        const label = document.createElement('label');
+        label.className = 'category-checkbox-item';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = 'product-category';
+        checkbox.value = c.id;
+        checkbox.checked = selected.has(c.id);
+
+        const text = document.createElement('span');
+        text.textContent = `${c.parent ? `${c.parent.name} ➔ ` : ''}${c.name}`;
+        label.append(checkbox, text);
+        container.appendChild(label);
       });
     }
 
@@ -959,6 +1003,7 @@
       document.getElementById('prod-id').value = '';
       document.getElementById('product-modal-title').innerText = 'Add New Product';
       document.getElementById('variants-container').innerHTML = '';
+      populateCategoryDropdowns();
       document.getElementById('product-modal').style.display = 'flex';
     }
 
@@ -974,7 +1019,7 @@
       document.getElementById('prod-name').value = prod.name;
       document.getElementById('prod-price').value = prod.price;
       document.getElementById('prod-stock').value = prod.stock;
-      document.getElementById('prod-category').value = prod.categoryId;
+      populateCategoryDropdowns((prod.categories || []).map(c => c.id));
       document.getElementById('prod-image').value = prod.image || '';
       document.getElementById('prod-desc').value = prod.description || '';
       document.getElementById('prod-active').checked = prod.active;
@@ -1014,11 +1059,19 @@
         basePrice = variants[0].price;
       }
 
+      const categoryIds = Array.from(
+        document.querySelectorAll('input[name="product-category"]:checked')
+      ).map(input => Number(input.value));
+      if (categoryIds.length === 0) {
+        showToast('Select at least one category', true);
+        return;
+      }
+
       const data = {
         name: document.getElementById('prod-name').value,
         price: basePrice,
         stock: 999, // Default stock as quantity is handled implicitly
-        categoryId: parseInt(document.getElementById('prod-category').value, 10),
+        categoryIds,
         image: document.getElementById('prod-image').value || null,
         description: document.getElementById('prod-desc').value || null,
         active: document.getElementById('prod-active').checked

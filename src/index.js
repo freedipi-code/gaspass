@@ -3,6 +3,10 @@ const path = require('path');
 const config = require('./config');
 const bot = require('./bot/bot');
 const adminRouter = require('./bot/admin.router');
+const prisma = require('./db/client');
+
+let httpServer;
+let shuttingDown = false;
 
 function setupExpressApp(app) {
   // Mount admin API routes
@@ -22,7 +26,7 @@ async function startPolling() {
   const app = express();
   setupExpressApp(app);
   const port = config.webhook.port || 3000;
-  app.listen(port, () => {
+  httpServer = app.listen(port, () => {
     console.log(`📊 Admin Dashboard disponible sur http://localhost:${port}/admin`);
   });
 
@@ -46,7 +50,7 @@ async function startWebhook() {
     drop_pending_updates: false,
   }));
 
-  app.listen(config.webhook.port, () => {
+  httpServer = app.listen(config.webhook.port, () => {
     console.log(`🤖 Bot lancé en mode WEBHOOK sur le port ${config.webhook.port}`);
     console.log(`   URL configurée : ${url}`);
     console.log(`📊 Admin Dashboard disponible sur /admin`);
@@ -66,6 +70,21 @@ async function startWebhook() {
   }
 })();
 
-// Arrêt propre
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+// Arrêt propre : stoppe Telegram, Express et le pool PostgreSQL.
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  bot.stop(signal);
+  if (httpServer) {
+    await new Promise((resolve) => httpServer.close(resolve));
+  }
+  await prisma.$disconnect();
+}
+
+process.once('SIGINT', () => {
+  shutdown('SIGINT').catch(console.error).finally(() => process.exit(0));
+});
+process.once('SIGTERM', () => {
+  shutdown('SIGTERM').catch(console.error).finally(() => process.exit(0));
+});

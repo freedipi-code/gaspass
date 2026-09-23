@@ -56,10 +56,11 @@ module.exports = {
   // Channel / community
   channelUrl: "",            // e.g. "https://t.me/your_channel" — empty hides the button
   channelLabel: "News Feed",
-  websiteUrl: "",
-  websiteLabel: "Website",
+  reviewCount: null,          // Use a verified number, or null to hide the count
   groupUrl: "",
   groupLabel: "Element Group",
+  backupBotUrl: "",
+  backupBotLabel: "Backup Bot",
 
   // Owner / support contact (Telegram username without @)
   ownerUsername: "@SamMcrPharmaUK",         // e.g. "yourhandle" — empty hides the line

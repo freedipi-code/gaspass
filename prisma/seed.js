@@ -292,13 +292,14 @@ async function main() {
   ];
 
   for (const p of products) {
-    const { variants, ...productData } = p;
+    const { variants, categoryId, ...productData } = p;
     // Use first variant price as base price
     const basePrice = variants[0]?.price || 0;
     const product = await prisma.product.create({
       data: {
         ...productData,
         price: basePrice,
+        categories: { connect: [{ id: categoryId }] },
       },
     });
     // Create variants

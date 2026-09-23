@@ -70,12 +70,12 @@ async function getRootCategories() {
 async function getFilteredProducts(categoryFilter) {
   const where = { active: true };
   if (categoryFilter && categoryFilter !== 'all') {
-    where.categoryId = Number(categoryFilter);
+    where.categories = { some: { id: Number(categoryFilter) } };
   }
   return prisma.product.findMany({
     where,
     orderBy: [{ purchaseCount: 'desc' }, { rating: 'desc' }],
-    include: { category: true },
+    include: { categories: true },
   });
 }
 

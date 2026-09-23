@@ -1,6 +1,34 @@
 const shop = require('../../shop.config');
 const cartService = require('../../services/cart.service');
 const { homeMenu } = require('../keyboards');
+const { beginSetup } = require('./security-mark');
+const { getSecurityMark } = require('../../services/security-mark.service');
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
+}
+
+function homeText(securityMark) {
+  const lines = [
+    '✅ <b>Shop is Online!</b>',
+    `🛡️ <b>Your security mark:</b> ${escapeHtml(`${securityMark.emoji} ${securityMark.phrase}`)}`,
+    '',
+    escapeHtml(shop.welcomeText),
+  ];
+
+  if (shop.footerText) {
+    lines.push('');
+    if (shop.footerLink) {
+      lines.push(`<a href="${escapeHtml(shop.footerLink)}">${escapeHtml(shop.footerText)}</a>`);
+    } else {
+      lines.push(escapeHtml(shop.footerText));
+    }
+  }
+  return lines.join('\n');
+}
 
 const HELP_TEXT = [
   '*Available commands*',
@@ -30,9 +58,16 @@ async function getHomeStats(userId) {
 }
 
 async function showHome(ctx) {
+  const securityMark = getSecurityMark(ctx.state.user);
+  if (!securityMark) {
+    return beginSetup(ctx, { edit: Boolean(ctx.callbackQuery) });
+  }
+
   const { cartSummary } = await getHomeStats(ctx.state.user.id);
-  const menuText = shop.mainMenuTitle || 'Choose an option:';
+  const menuText = homeText(securityMark);
   const menuOpts = {
+    parse_mode: 'HTML',
+    disable_web_page_preview: true,
     ...homeMenu(cartSummary),
   };
 
@@ -51,7 +86,7 @@ async function showHome(ctx) {
     }
   }
 
-  await ctx.reply(`Message from\n${shop.name}\n\n${shop.welcomeText}`);
+  // The presentation and its keyboard deliberately stay in one Telegram block.
   await ctx.reply(menuText, menuOpts);
 }
 

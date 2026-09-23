@@ -8,6 +8,8 @@ services:
     envVars:
       - key: BOT_TOKEN
         sync: false
+      - key: SECURITY_MARK_KEY
+        generateValue: true
       - key: ADMIN_ID
         sync: false
       - key: BOT_MODE
@@ -26,6 +28,10 @@ services:
         fromDatabase:
           name: telegram-shop-db-4rm0-kol
           property: connectionString
+      - key: DB_CONNECTION_LIMIT
+        value: "2"
+      - key: DB_POOL_TIMEOUT
+        value: "20"
 
 databases:
   - name: telegram-shop-db-4rm0-kol
