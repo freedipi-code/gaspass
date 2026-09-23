@@ -7,7 +7,7 @@
 
 module.exports = {
   // Display name shown in welcome message header
-  name: "SamMcrPharma_tbcshop",
+  name: "Purest Mail",
 
   // Vendor name shown on product pages (-- by VendorName)
   vendorName: "Buaking",
@@ -18,28 +18,20 @@ module.exports = {
 
   // Entry message shown before the main menu.
   welcomeText: [
-    "‼️ PLACE YOUR ORDERS NOW ‼️",
+    "📦 6,739 Sales",
+    "⭐ 4.9 Average Review",
+    "⚡ 17hr Average Ticket Response",
     "",
-    "Shop Open Taking Orders 24/7",
+    "Introducing Purest Mail",
     "",
-    "🛍️ Start Viewing Our Large Range Of Products 🛍️",
+    "The UK’s #1 Vendor 🇬🇧",
+    "100k+ Parcels Posted Since 2020 📮😁",
     "",
-    "We Are The Most Reliable And Trusted",
-    "🤝 Fast & Discreet Service ⚡📮",
-    "⭐ ⭐ ⭐ ⭐ ⭐",
+    "The Orders Bot Is Online 24/7 🤖",
+    "We Post Out Orders Monday - Friday 📦🚚",
     "",
-    "📮 Same Day Dispatch Cut Off Time:",
-    "📮 Monday - Friday 02:30pm",
-    "📮 Saturday 09:00am",
-    "",
-    "⚠️ Orders Placed After Cut Off Time Will Be Dispatched Next Day ⚠️",
-    "",
-    "🏦 Yes We Accept Bank Transfer 🏦",
-    "(£100 minimum)",
-    "For Bank Transfer Send Message And Your Order To: @SamMcrPharmaUK",
-    "",
-    "For Any Questions Or Assistance Feel Free To Contact Us:",
-    "@SamMcrPharmaUK",
+    "!!NEW!! TRACKING BOT:",
+    "t.me/PURESTDISPOSTRACKINGBOT",
   ].join("\n"),
 
   mainMenuTitle: "Choose an option:",
@@ -70,7 +62,7 @@ module.exports = {
  //// don't forget this place is for channel link
 
   footerLink: "https://t.me/SamMcrPharmaUK",
-  footerText: "Powered by SamMcrPharma_01_TBC Shop",
+  footerText: "",
 
 
   ///////////
