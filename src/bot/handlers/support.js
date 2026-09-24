@@ -1,6 +1,7 @@
 const { Markup } = require('telegraf');
 const config = require('../../config');
 const cartService = require('../../services/cart.service');
+const { escapeHtml } = require('../../services/notify.service');
 const { cartButton } = require('../keyboards');
 
 // Simple support flow:
@@ -60,10 +61,10 @@ function register(bot) {
 
     const u = ctx.from;
     const handle = u.username ? `@${u.username}` : `id:${u.id}`;
-    const header = `🎫 *New support request*\nFrom: ${handle}\nName: ${[u.first_name, u.last_name].filter(Boolean).join(' ')}`;
+    const header = `🎫 <b>New support request</b>\nFrom: ${escapeHtml(handle)}\nName: ${escapeHtml([u.first_name, u.last_name].filter(Boolean).join(' '))}`;
 
     try {
-      const sent = await bot.telegram.sendMessage(config.adminId, header, { parse_mode: 'Markdown' });
+      const sent = await bot.telegram.sendMessage(config.adminId, header, { parse_mode: 'HTML' });
       const forwarded = await ctx.forwardMessage(config.adminId);
       // Remember which user this forwarded message refers to so admin can reply to it
       adminReplyMap.set(forwarded.message_id, String(u.id));
@@ -88,8 +89,8 @@ function register(bot) {
 
     try {
       if (ctx.message.text) {
-        await bot.telegram.sendMessage(userId, `💬 *Support reply:*\n\n${ctx.message.text}`, {
-          parse_mode: 'Markdown',
+        await bot.telegram.sendMessage(userId, `💬 <b>Support reply:</b>\n\n${escapeHtml(ctx.message.text)}`, {
+          parse_mode: 'HTML',
         });
       } else {
         // copy non-text content (photo, doc, etc.)

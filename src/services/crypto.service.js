@@ -1,39 +1,62 @@
 const https = require('https');
 
-function fetchJson(url) {
+const COINGECKO_IDS = Object.freeze({
+  BTC: 'bitcoin',
+  XMR: 'monero',
+});
+
+function fetchJson(url, headers = {}) {
   return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'User-Agent': 'node-fetch' } }, (res) => {
+    const request = https.get(url, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'telegram-shop/0.1',
+        ...headers,
+      },
+    }, (res) => {
       let data = '';
       res.on('data', (chunk) => {
         data += chunk;
       });
       res.on('end', () => {
+        if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
+          reject(new Error(`CoinGecko HTTP ${res.statusCode || 'unknown'}`));
+          return;
+        }
         try {
           resolve(JSON.parse(data));
         } catch (e) {
-          reject(e);
+          reject(new Error(`Invalid CoinGecko response: ${e.message}`));
         }
       });
-    }).on('error', (err) => {
-      reject(err);
     });
+
+    request.setTimeout(10000, () => {
+      request.destroy(new Error('CoinGecko request timed out'));
+    });
+    request.on('error', reject);
   });
 }
 
 async function getCryptoPrice(cryptoCode) {
-  try {
-    const url = `https://api.coinbase.com/v2/prices/${cryptoCode}-USD/spot`;
-    const res = await fetchJson(url);
-    if (res && res.data && res.data.amount) {
-      return parseFloat(res.data.amount);
-    }
-    throw new Error('Invalid response format');
-  } catch (err) {
-    console.error(`Failed to fetch price for ${cryptoCode}:`, err.message);
-    if (cryptoCode === 'BTC') return 100000;
-    if (cryptoCode === 'XMR') return 150;
-    throw err;
+  const code = String(cryptoCode).toUpperCase();
+  const coinId = COINGECKO_IDS[code];
+  if (!coinId) {
+    throw new Error(`Unsupported cryptocurrency: ${cryptoCode}`);
   }
+
+  const params = new URLSearchParams({ ids: coinId, vs_currencies: 'usd' });
+  const headers = {};
+  if (process.env.COINGECKO_API_KEY) {
+    headers['x-cg-demo-api-key'] = process.env.COINGECKO_API_KEY;
+  }
+
+  const res = await fetchJson(`https://api.coingecko.com/api/v3/simple/price?${params}`, headers);
+  const price = Number(res?.[coinId]?.usd);
+  if (!Number.isFinite(price) || price <= 0) {
+    throw new Error(`Invalid CoinGecko price for ${code}`);
+  }
+  return price;
 }
 
 async function convertUsdToCrypto(amountInUsd, cryptoCode) {

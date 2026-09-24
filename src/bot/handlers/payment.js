@@ -6,6 +6,17 @@ const cryptoService = require('../../services/crypto.service');
 const cartService = require('../../services/cart.service');
 const { cartButton } = require('../keyboards');
 
+function formatCryptoAmount(amount, paymentMethod) {
+  return amount.toFixed(paymentMethod === 'XMR' ? 12 : 8);
+}
+
+function buildPaymentUri(paymentMethod, walletAddress, amount) {
+  if (paymentMethod === 'XMR') {
+    return `monero:${walletAddress}?tx_amount=${amount}`;
+  }
+  return `bitcoin:${walletAddress}?amount=${amount}`;
+}
+
 function register(bot) {
   bot.action('checkout', async (ctx) => {
     await ctx.answerCbQuery().catch(() => {});
@@ -21,6 +32,29 @@ function register(bot) {
       return ctx.scene?.leave();
     }
 
+    const paymentMethod = data.paymentMethod;
+    const walletAddress = paymentMethod === 'BTC' ? config.wallets.btc : config.wallets.xmr;
+    if (!walletAddress) {
+      await ctx.answerCbQuery(`${paymentMethod} wallet is not configured.`, { show_alert: true });
+      return;
+    }
+
+    // Resolve the exchange rate before creating the order. If CoinGecko is
+    // unavailable, the cart remains intact and no unusable order is created.
+    let cryptoAmount;
+    try {
+      const cart = await cartService.getCartWithItems(ctx.state.user.id);
+      const total = cartService.computeTotal(cart);
+      const amount = await cryptoService.convertUsdToCrypto(total, paymentMethod);
+      cryptoAmount = formatCryptoAmount(amount, paymentMethod);
+    } catch (e) {
+      console.error('Crypto price lookup failed:', e.message);
+      await ctx.answerCbQuery('Unable to retrieve the current crypto price. Please try again.', {
+        show_alert: true,
+      });
+      return;
+    }
+
     let order;
     try {
       order = await orderService.createOrderFromCart(ctx.state.user.id, data);
@@ -31,21 +65,8 @@ function register(bot) {
 
     await ctx.answerCbQuery('Order created ✅').catch(() => {});
 
-    // Calculate crypto amount
-    let cryptoAmount = '...';
-    try {
-      const amt = await cryptoService.convertUsdToCrypto(order.total, order.paymentMethod);
-      cryptoAmount = amt.toFixed(8);
-    } catch (e) {
-      cryptoAmount = 'Error calculating amount';
-    }
-
-    const walletAddress = order.paymentMethod === 'BTC' ? config.wallets.btc : config.wallets.xmr;
-    
-    // Generate QR code using quickchart API
-    // We format the URI according to BIP21 for BTC and similar for XMR
-    const coinUriPrefix = order.paymentMethod === 'BTC' ? 'bitcoin:' : 'monero:';
-    const paymentUri = `${coinUriPrefix}${walletAddress}?amount=${cryptoAmount}`;
+    // Generate a wallet-compatible BTC or Monero payment URI.
+    const paymentUri = buildPaymentUri(order.paymentMethod, walletAddress, cryptoAmount);
     const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(paymentUri)}&size=400&margin=2`;
 
     const message = `Order ${order.orderNumber}\n\n*Next step:*\n\nSend\n\`${cryptoAmount} ${order.paymentMethod}\`\nto\n\`${walletAddress}\`\n\nYou have 30 minutes to send the full payment (it can confirm on the blockchain later). Several payments within 30 minutes are OK. If your payment is detected after 30 minutes, it will be automatically refunded.\n\nOrder details: /ord\\_${order.orderNumber}`;
@@ -112,4 +133,4 @@ function register(bot) {
   });
 }
 
-module.exports = { register };
+module.exports = { register, formatCryptoAmount, buildPaymentUri };
