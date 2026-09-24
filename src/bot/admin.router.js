@@ -242,7 +242,7 @@ router.post('/products/:id/variants/bulk', async (req, res) => {
           })),
         });
       }
-    });
+    }, { maxWait: 60000, timeout: 120000 });
 
     const saved = await prisma.productVariant.findMany({
       where: { productId },

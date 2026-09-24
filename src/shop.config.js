@@ -64,7 +64,7 @@ module.exports = {
     "Worldwide shipping available.",
     "",
     "💳 *Payment*",
-    "We accept BTC and LTC.",
+    "We accept BTC and XMR.",
     "Payment instructions are shown after checkout.",
     "",
     "↩️ *Returns*",

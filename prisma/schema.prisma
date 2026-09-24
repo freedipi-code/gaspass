@@ -106,7 +106,7 @@ model Order {
   orderNumber     String   @unique
   userId          Int
   total           Float
-  paymentMethod   String   // "BTC" | "LTC"
+  paymentMethod   String   // "BTC" | "XMR"
   status          String   @default("pending") // pending | paid | cancelled | shipped
   shippingName    String
   shippingCountry String

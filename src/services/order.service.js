@@ -67,7 +67,7 @@ async function createOrderFromCart(userId, orderData) {
     await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
     return created;
-  });
+  }, { maxWait: 60000, timeout: 120000 });
 
   return order;
 }

@@ -40,11 +40,11 @@ function register(bot) {
       cryptoAmount = 'Error calculating amount';
     }
 
-    const walletAddress = order.paymentMethod === 'BTC' ? config.wallets.btc : config.wallets.ltc;
+    const walletAddress = order.paymentMethod === 'BTC' ? config.wallets.btc : config.wallets.xmr;
     
     // Generate QR code using quickchart API
-    // We format the URI according to BIP21 for BTC and similar for LTC
-    const coinUriPrefix = order.paymentMethod === 'BTC' ? 'bitcoin:' : 'litecoin:';
+    // We format the URI according to BIP21 for BTC and similar for XMR
+    const coinUriPrefix = order.paymentMethod === 'BTC' ? 'bitcoin:' : 'monero:';
     const paymentUri = `${coinUriPrefix}${walletAddress}?amount=${cryptoAmount}`;
     const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(paymentUri)}&size=400&margin=2`;
 

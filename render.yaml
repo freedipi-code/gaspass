@@ -20,7 +20,7 @@ services:
         sync: false
       - key: BTC_WALLET
         sync: false
-      - key: LTC_WALLET
+      - key: XMR_WALLET
         sync: false
       - key: DATABASE_URL
         fromDatabase:

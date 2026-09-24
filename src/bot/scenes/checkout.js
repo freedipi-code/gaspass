@@ -92,13 +92,13 @@ async function renderStep(ctx) {
       text = `💳 *Payment Method*\n\n💬 Select your currency:`;
       keyboard = [
         [Markup.button.callback('Bitcoin (BTC)', 'checkout:setpay:BTC')],
-        [Markup.button.callback('Litecoin (LTC)', 'checkout:setpay:LTC')],
+        [Markup.button.callback('Monero (XMR)', 'checkout:setpay:XMR')],
         [Markup.button.callback('< Back to Shipping', 'checkout:edit:city')]
       ];
       break;
 
     case STEPS.REFUND:
-      text = `💳 *Payment Method*\nCurrency:\n*${data.paymentMethod === 'BTC' ? 'Bitcoin' : 'Litecoin'}*\nRefund address:\n...\n\n✏️ SEND ME YOUR ${data.paymentMethod} REFUND ADDRESS:`;
+      text = `💳 *Payment Method*\nCurrency:\n*${data.paymentMethod === 'BTC' ? 'Bitcoin' : 'Monero'}*\nRefund address:\n...\n\n✏️ SEND ME YOUR ${data.paymentMethod} REFUND ADDRESS:`;
       keyboard = [
         [Markup.button.callback('< Payment Method', 'checkout:step:payment_method')]
       ];
@@ -123,7 +123,7 @@ async function renderStep(ctx) {
              `📦 *Shipping Details:*\n${data.shippingName}\n${data.shippingStreet}\n` +
              (data.shippingApt !== 'n/a' ? `${data.shippingApt}\n` : '') +
              `${data.shippingCity}\n${data.shippingCountry}\n\n` +
-             `💳 *Payment Method:*\n${data.paymentMethod} - ${data.paymentMethod === 'BTC' ? 'Bitcoin' : 'Litecoin'}\nRefund address:\n\`${data.refundAddress}\``;
+             `💳 *Payment Method:*\n${data.paymentMethod} - ${data.paymentMethod === 'BTC' ? 'Bitcoin' : 'Monero'}\nRefund address:\n\`${data.refundAddress}\``;
              
       keyboard = [
         [Markup.button.callback('⇐ Back', 'checkout:step:refund'), Markup.button.callback('✅ Place Order >', 'checkout:place_order')],
@@ -214,7 +214,7 @@ checkout.action(/^checkout:step:(.+)$/, async (ctx) => {
 });
 
 // Set payment method
-checkout.action(/^checkout:setpay:(BTC|LTC)$/, async (ctx) => {
+checkout.action(/^checkout:setpay:(BTC|XMR)$/, async (ctx) => {
   await ctx.answerCbQuery().catch(() => {});
   const data = ctx.scene.session.checkout;
   data.paymentMethod = ctx.match[1];
