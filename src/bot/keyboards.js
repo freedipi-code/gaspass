@@ -28,9 +28,14 @@ function formatPrice(amount) {
   return `${shop.currency}${dollars}.${centsStr}`;
 }
 
+function cartButton(quantity = 0, label = 'Cart') {
+  const count = quantity > 0 ? ` (${quantity})` : '';
+  return Markup.button.callback(`🛒 ${label}${count}`, 'cart');
+}
+
 // ── Catalog keyboard (for /start storefront) ──
 
-function catalogKeyboard(page, totalPages, categories, categoryFilter) {
+function catalogKeyboard(page, totalPages, categories, categoryFilter, cartQuantity = 0) {
   const rows = [];
 
   // Navigation row
@@ -57,8 +62,11 @@ function catalogKeyboard(page, totalPages, categories, categoryFilter) {
     rows.push(navRow);
   }
 
-  // Back to home button
-  rows.push([Markup.button.callback('⇌ Back', 'home')]);
+  // Keep the cart directly accessible while browsing the catalog.
+  rows.push([
+    Markup.button.callback('⇌ Back', 'home'),
+    cartButton(cartQuantity, 'View Cart'),
+  ]);
 
   // Category filter buttons (2 per row)
   const catButtons = categories.map((c) => {
@@ -76,7 +84,7 @@ function catalogKeyboard(page, totalPages, categories, categoryFilter) {
 
 // ── Product detail keyboard ──
 
-function productDetailKeyboard(product, variants, productIndex, totalProducts, categoryFilter, cartHasProduct) {
+function productDetailKeyboard(product, variants, productIndex, totalProducts, categoryFilter, cartQuantity = 0) {
   const rows = [];
 
   // Back / Next row
@@ -115,6 +123,9 @@ function productDetailKeyboard(product, variants, productIndex, totalProducts, c
     ),
   ]);
 
+  // Product messages can stay open for a long time, so expose the cart here too.
+  rows.push([cartButton(cartQuantity, 'View Cart')]);
+
   return Markup.inlineKeyboard(rows);
 }
 
@@ -150,5 +161,6 @@ module.exports = {
   productDetailKeyboard,
   starsVisual,
   formatPrice,
+  cartButton,
   chunk,
 };

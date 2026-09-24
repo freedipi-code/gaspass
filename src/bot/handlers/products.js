@@ -70,16 +70,21 @@ async function showProductDetail(ctx) {
   }
 
   // Check cart status
-  const cart = await cartService.getOrCreateCart(ctx.state.user.id);
-  const inCartCount = await prisma.cartItem.count({
-    where: { cartId: cart.id, productId: pId }
-  });
-  product.inCart = inCartCount > 0;
+  const cart = await cartService.getCartWithItems(ctx.state.user.id);
+  product.inCart = cart.items.some((item) => item.productId === pId);
+  const cartQuantity = cart.items.reduce((sum, item) => sum + item.quantity, 0);
 
   if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
 
   const caption = buildProductCaption(product, shop.vendorName, shop.vendorCommand);
-  const keyboard = productDetailKeyboard(product, product.variants, pIndex, totalProducts, catFilter);
+  const keyboard = productDetailKeyboard(
+    product,
+    product.variants,
+    pIndex,
+    totalProducts,
+    catFilter,
+    cartQuantity,
+  );
 
   const opts = {
     parse_mode: 'Markdown',

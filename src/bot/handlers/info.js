@@ -1,11 +1,17 @@
 const { Markup } = require('telegraf');
 const shop = require('../../shop.config');
+const cartService = require('../../services/cart.service');
+const { cartButton } = require('../keyboards');
 
 async function showInfo(ctx) {
+  const cartQuantity = await cartService.getCartQuantity(ctx.state.user.id);
   const text = `ℹ️ *Information*\n\n${shop.information}`;
   const opts = {
     parse_mode: 'Markdown',
-    ...Markup.inlineKeyboard([[Markup.button.callback('🏠 Catalog', 'catalog:page:0:all')]]),
+    ...Markup.inlineKeyboard([[
+      Markup.button.callback('🏠 Catalog', 'catalog:page:0:all'),
+      cartButton(cartQuantity),
+    ]]),
   };
   if (ctx.callbackQuery) {
     await ctx.answerCbQuery().catch(() => {});

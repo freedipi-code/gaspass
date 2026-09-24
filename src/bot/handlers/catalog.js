@@ -1,4 +1,5 @@
 const prisma = require('../../db/client');
+const cartService = require('../../services/cart.service');
 const shop = require('../../shop.config');
 const { resolveImage } = require('../../utils/image');
 const { catalogKeyboard, starsVisual } = require('../keyboards');
@@ -79,8 +80,11 @@ async function getFilteredProducts(categoryFilter) {
 
 // Show the catalog page
 async function showCatalog(ctx, page = 0, categoryFilter = 'all') {
-  const allProducts = await getFilteredProducts(categoryFilter);
-  const categories = await getRootCategories();
+  const [allProducts, categories, cartQuantity] = await Promise.all([
+    getFilteredProducts(categoryFilter),
+    getRootCategories(),
+    cartService.getCartQuantity(ctx.state.user.id),
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(allProducts.length / PRODUCTS_PER_PAGE));
   const safePage = Math.min(page, totalPages - 1);
@@ -88,7 +92,7 @@ async function showCatalog(ctx, page = 0, categoryFilter = 'all') {
   const pageProducts = allProducts.slice(pageOffset, pageOffset + PRODUCTS_PER_PAGE);
 
   const text = buildCatalogText(pageProducts, safePage, totalPages, pageOffset);
-  const keyboard = catalogKeyboard(safePage, totalPages, categories, categoryFilter);
+  const keyboard = catalogKeyboard(safePage, totalPages, categories, categoryFilter, cartQuantity);
 
   const opts = {
     parse_mode: 'Markdown',

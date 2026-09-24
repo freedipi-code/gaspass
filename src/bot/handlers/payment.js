@@ -3,6 +3,8 @@ const config = require('../../config');
 const orderService = require('../../services/order.service');
 const notifyService = require('../../services/notify.service');
 const cryptoService = require('../../services/crypto.service');
+const cartService = require('../../services/cart.service');
+const { cartButton } = require('../keyboards');
 
 function register(bot) {
   bot.action('checkout', async (ctx) => {
@@ -58,12 +60,16 @@ function register(bot) {
     );
 
     // Prompt for proof of payment
+    const cartQuantity = await cartService.getCartQuantity(ctx.state.user.id);
     await ctx.reply(
       '📎 After payment, send a *screenshot* or *transaction hash* directly in this chat — it will be forwarded to the admin.',
       {
         parse_mode: 'Markdown',
         ...Markup.inlineKeyboard([
-          [Markup.button.callback('🏠 Home', 'catalog:page:0:all')],
+          [
+            Markup.button.callback('🏠 Home', 'catalog:page:0:all'),
+            cartButton(cartQuantity),
+          ],
         ]),
       }
     );

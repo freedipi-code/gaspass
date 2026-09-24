@@ -1,5 +1,7 @@
 const { Markup } = require('telegraf');
 const config = require('../../config');
+const cartService = require('../../services/cart.service');
+const { cartButton } = require('../keyboards');
 
 // Simple support flow:
 // 1. User clicks "Support" → bot asks them to send their question/issue.
@@ -13,6 +15,7 @@ const config = require('../../config');
 async function startSupport(ctx) {
   ctx.session = ctx.session || {};
   ctx.session.awaitingSupport = true;
+  const cartQuantity = await cartService.getCartQuantity(ctx.state.user.id);
   const text =
     '🎫 *Support*\n\n' +
     'Send your message (text, screenshot, etc.) and it will be forwarded to our team.\n' +
@@ -20,7 +23,10 @@ async function startSupport(ctx) {
     'Type /cancel to abort.';
   const opts = {
     parse_mode: 'Markdown',
-    ...Markup.inlineKeyboard([[Markup.button.callback('🏠 Home', 'home')]]),
+    ...Markup.inlineKeyboard([[
+      Markup.button.callback('🏠 Home', 'home'),
+      cartButton(cartQuantity),
+    ]]),
   };
   if (ctx.callbackQuery) {
     await ctx.answerCbQuery().catch(() => {});

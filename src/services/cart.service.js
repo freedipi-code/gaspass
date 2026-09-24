@@ -14,6 +14,14 @@ async function getCartWithItems(userId) {
   });
 }
 
+async function getCartQuantity(userId) {
+  const result = await prisma.cartItem.aggregate({
+    where: { cart: { userId } },
+    _sum: { quantity: true },
+  });
+  return result._sum.quantity || 0;
+}
+
 // Add a product with a specific variant
 async function addVariantItem(userId, productId, variantId, qty = 1) {
   const product = await prisma.product.findUnique({ where: { id: productId } });
@@ -110,6 +118,7 @@ function computeTotal(cart) {
 module.exports = {
   getOrCreateCart,
   getCartWithItems,
+  getCartQuantity,
   addVariantItem,
   addItem,
   decrementItem,

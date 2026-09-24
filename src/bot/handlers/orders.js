@@ -1,5 +1,7 @@
 const { Markup } = require('telegraf');
 const prisma = require('../../db/client');
+const cartService = require('../../services/cart.service');
+const { cartButton } = require('../keyboards');
 
 function statusEmoji(status) {
   return {
@@ -11,16 +13,22 @@ function statusEmoji(status) {
 }
 
 async function showOrders(ctx) {
-  const orders = await prisma.order.findMany({
-    where: { userId: ctx.state.user.id },
-    orderBy: { createdAt: 'desc' },
-    take: 10,
-  });
+  const [orders, cartQuantity] = await Promise.all([
+    prisma.order.findMany({
+      where: { userId: ctx.state.user.id },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    }),
+    cartService.getCartQuantity(ctx.state.user.id),
+  ]);
 
   if (!orders.length) {
     const opts = {
       parse_mode: 'Markdown',
-      ...Markup.inlineKeyboard([[Markup.button.callback('🏠 Home', 'home')]]),
+      ...Markup.inlineKeyboard([[
+        Markup.button.callback('🏠 Home', 'home'),
+        cartButton(cartQuantity),
+      ]]),
     };
     const text = '📜 *Your Orders*\n\n_No orders yet._';
     if (ctx.callbackQuery) {
@@ -36,7 +44,10 @@ async function showOrders(ctx) {
       `order:${o.id}`,
     ),
   ]);
-  rows.push([Markup.button.callback('🏠 Home', 'home')]);
+  rows.push([
+    Markup.button.callback('🏠 Home', 'home'),
+    cartButton(cartQuantity),
+  ]);
 
   const text = '📜 *Your Orders* (10 most recent)\n\nTap an order for details.';
   const opts = { parse_mode: 'Markdown', ...Markup.inlineKeyboard(rows) };
@@ -49,10 +60,13 @@ async function showOrders(ctx) {
 
 async function showOrderDetail(ctx) {
   const id = Number(ctx.match[1]);
-  const order = await prisma.order.findFirst({
-    where: { id, userId: ctx.state.user.id },
-    include: { items: { include: { product: true } } },
-  });
+  const [order, cartQuantity] = await Promise.all([
+    prisma.order.findFirst({
+      where: { id, userId: ctx.state.user.id },
+      include: { items: { include: { product: true } } },
+    }),
+    cartService.getCartQuantity(ctx.state.user.id),
+  ]);
   if (!order) {
     await ctx.answerCbQuery('Order not found').catch(() => {});
     return;
@@ -75,6 +89,7 @@ async function showOrderDetail(ctx) {
     parse_mode: 'Markdown',
     ...Markup.inlineKeyboard([
       [Markup.button.callback('⬅️ Back', 'orders'), Markup.button.callback('🏠 Home', 'home')],
+      [cartButton(cartQuantity, 'View Cart')],
     ]),
   };
   try { await ctx.editMessageText(text, opts); }
