@@ -1,6 +1,6 @@
 const { Telegraf, session, Scenes } = require('telegraf');
 const config = require('../config');
-const prisma = require('../db/client');
+const userService = require('../services/user.service');
 
 const catalogHandler = require('./handlers/catalog');
 const startHandler = require('./handlers/start');
@@ -21,18 +21,7 @@ const bot = new Telegraf(config.botToken);
 // Middleware: get-or-create the Prisma User from telegramId
 bot.use(async (ctx, next) => {
   if (!ctx.from) return next();
-  const tgId = String(ctx.from.id);
-  let user = await prisma.user.findUnique({ where: { telegramId: tgId } });
-  if (!user) {
-    user = await prisma.user.create({
-      data: {
-        telegramId: tgId,
-        username: ctx.from.username || null,
-        fullName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' ') || null,
-      },
-    });
-  }
-  ctx.state.user = user;
+  ctx.state.user = await userService.getOrCreateTelegramUser(ctx.from);
   return next();
 });
 

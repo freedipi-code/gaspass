@@ -11,10 +11,9 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;');
 }
 
-function homeText(securityMark) {
+function homeText() {
   const lines = [
     '✅ <b>Shop is Online!</b>',
-    `🛡️ <b>Your security mark:</b> ${escapeHtml(`${securityMark.emoji} ${securityMark.phrase}`)}`,
     '',
     escapeHtml(shop.welcomeText),
   ];
@@ -64,7 +63,7 @@ async function showHome(ctx) {
   }
 
   const { cartSummary } = await getHomeStats(ctx.state.user.id);
-  const menuText = homeText(securityMark);
+  const menuText = homeText();
   const menuOpts = {
     parse_mode: 'HTML',
     disable_web_page_preview: true,

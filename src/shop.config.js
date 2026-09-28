@@ -18,20 +18,23 @@ module.exports = {
 
   // Entry message shown before the main menu.
   welcomeText: [
-    "📦 6,739 Sales",
+    "📦 961 Sales",
     "⭐ 4.9 Average Review",
-    "⚡ 17hr Average Ticket Response",
+    "⚡ 6hr Average Ticket Response",
     "",
-    "Introducing Purest Mail",
+    "Welcome to BuddedUP!",
     "",
-    "The UK’s #1 Vendor 🇬🇧",
-    "100k+ Parcels Posted Since 2020 📮😁",
+    "We are here to Help you with anything Green",
+    "Established Vendor for Years we Do it right✔️",
     "",
-    "The Orders Bot Is Online 24/7 🤖",
-    "We Post Out Orders Monday - Friday 📦🚚",
+    "FREE SPECIAL NEXT DAY DELIVERY",
+    "INCLUDED IN ALL PRICES LAND BEFORE 1PM",
+    "❓",
     "",
-    "!!NEW!! TRACKING BOT:",
-    "t.me/PURESTDISPOSTRACKINGBOT",
+    "We do post Runs everyday off the week and",
+    "also accept other payment methods For",
+    "details please contact /tickets or for any other",
+    "enquires❓",
   ].join("\n"),
 
   mainMenuTitle: "Choose an option:",
@@ -61,8 +64,8 @@ module.exports = {
   // Footer ////////////////////////////
  //// don't forget this place is for channel link
 
-  footerLink: "https://t.me/SamMcrPharmaUK",
-  footerText: "",
+  footerLink: "",
+  footerText: "Powered by TBC | Join TBC Public Chat",
 
 
   ///////////

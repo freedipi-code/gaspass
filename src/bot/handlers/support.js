@@ -36,6 +36,7 @@ function register(bot) {
 
   bot.action('support', startSupport);
   bot.command('support', startSupport);
+  bot.command('tickets', startSupport);
 
   bot.command('cancel', (ctx) => {
     if (ctx.session?.awaitingSupport) {

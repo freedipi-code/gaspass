@@ -202,7 +202,7 @@ function mainCategoriesKeyboard(categories, cartSummary = { count: 0, total: 0 }
       : `(${productCount} product${productCount !== 1 ? 's' : ''})`;
     return [
       Markup.button.callback(
-        `💊 ${category.name.toUpperCase()} ${countText} 💊`,
+        `${category.name.toUpperCase()} ${countText}`,
         `cat:view:${category.id}`,
       ),
     ];
@@ -222,7 +222,7 @@ function subCategoriesKeyboard(category, cartSummary = { count: 0, total: 0 }) {
       const productCount = child._count?.products || 0;
       return [
         Markup.button.callback(
-          `💊 ${child.name.toUpperCase()} (${productCount} product${productCount !== 1 ? 's' : ''})💊`,
+          `${child.name.toUpperCase()} (${productCount} product${productCount !== 1 ? 's' : ''})`,
           `catalog:cat:${child.id}`,
         ),
       ];
@@ -233,7 +233,7 @@ function subCategoriesKeyboard(category, cartSummary = { count: 0, total: 0 }) {
   if (directCount > 0) {
     rows.push([
       Markup.button.callback(
-        `💊 ${category.name.toUpperCase()} (${directCount} product${directCount !== 1 ? 's' : ''})💊`,
+        `${category.name.toUpperCase()} (${directCount} product${directCount !== 1 ? 's' : ''})`,
         `catalog:cat:${category.id}`,
       ),
     ]);

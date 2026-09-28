@@ -1,6 +1,7 @@
 const { Markup } = require('telegraf');
 const prisma = require('../../db/client');
 const securityMarkService = require('../../services/security-mark.service');
+const userService = require('../../services/user.service');
 
 const EMOJIS = [
   '🦉', '🚀', '⚡', '🌙', '🎯', '🌵',
@@ -47,7 +48,7 @@ async function beginSetup(ctx, { edit = false, replacing = false } = {}) {
   const text = [
     heading,
     '',
-    'Before you can browse, set your unique security mark — an emoji plus a secret phrase. Every genuine bot will show it at the top of the menu; fake copy-cat bots cannot know it.',
+    'Before you can browse, set your unique security mark — an emoji plus a secret phrase. You can verify it anytime with the Security Mark button; fake copy-cat bots cannot know it.',
     '',
     '<b>Step 1:</b> pick your emoji below.',
     '',
@@ -137,13 +138,14 @@ async function saveMark(ctx) {
     },
   });
   ctx.state.user = user;
+  userService.rememberUser(user);
   delete ctx.session.securityMark;
 
   await ctx.answerCbQuery('Security mark saved ✅').catch(() => {});
   await ctx.reply([
     '✅ <b>Your security mark is saved.</b>',
     '',
-    'Every genuine bot now shows it above the main menu. If a bot does not show your mark, it is fake — do not pay.',
+    'You can now verify it anytime with the Security Mark button. If a bot cannot show your mark, it is fake — do not pay.',
     '',
     '<i>We will never message you asking you to type your phrase.</i>',
   ].join('\n'), {
