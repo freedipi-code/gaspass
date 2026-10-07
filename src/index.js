@@ -3,12 +3,28 @@ const path = require('path');
 const config = require('./config');
 const bot = require('./bot/bot');
 const adminRouter = require('./bot/admin.router');
+const storefrontRouter = require('./storefront.router');
+const { createAdminAuth } = require('./admin-auth');
 
 function setupExpressApp(app) {
-  // Mount admin API routes
-  app.use('/api/admin', adminRouter);
-  // Serve admin static dashboard
-  app.use('/admin', express.static(path.join(__dirname, 'public/admin')));
+  app.locals.bot = bot;
+  const adminAuth = createAdminAuth({
+    passwordHash: config.adminAuth.passwordHash,
+    sessionSecret: config.adminAuth.sessionSecret,
+    loginPage: path.join(__dirname, 'public/admin/login.html'),
+  });
+  // Public storefront and its API
+  app.use('/api/store', storefrontRouter);
+  app.use('/images', express.static(path.join(__dirname, '..', 'images')));
+  app.get('/images/:file', (_req, res) => res.sendFile(path.join(__dirname, '..', 'images', 'cana.jpeg')));
+  app.use('/', express.static(path.join(__dirname, 'public/store')));
+  // Password-protected admin dashboard and API
+  app.use(express.urlencoded({ extended: false, limit: '10kb' }));
+  app.get('/admin/login', adminAuth.showLogin);
+  app.post('/admin/login', adminAuth.login);
+  app.post('/admin/logout', adminAuth.logout);
+  app.use('/api/admin', adminAuth.requireApi, adminRouter);
+  app.use('/admin', adminAuth.requirePage, express.static(path.join(__dirname, 'public/admin')));
   // Health check
   app.get('/health', (_req, res) => res.json({ ok: true }));
 }

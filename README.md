@@ -1,6 +1,6 @@
-# Boutique Telegram — MVP
+# Canna Express — Boutique Telegram + Web
 
-Bot Telegram e-commerce avec catégories, panier, commande et paiement crypto manuel (BTC / USDT).
+Boutique e-commerce avec un bot Telegram et une interface web responsive partageant le même catalogue, les mêmes stocks et les mêmes commandes. Paiement crypto manuel en BTC ou XMR.
 Stack : **Node.js + Telegraf** · **Express** (webhook) · **Prisma** (SQLite en dev, MySQL en prod).
 
 ## 1. Installation locale
@@ -11,7 +11,8 @@ npm install
 
 # 2. Variables d'environnement
 cp .env.example .env
-# Édite .env : BOT_TOKEN, ADMIN_ID, BTC_WALLET, USDT_WALLET
+# Édite .env : BOT_TOKEN, ADMIN_ID, BTC_WALLET, XMR_WALLET,
+# ADMIN_PASSWORD_HASH et ADMIN_SESSION_SECRET
 
 # 3. Base de données (SQLite)
 npm run db:migrate -- --name init
@@ -34,7 +35,7 @@ Parcours :
 2. Ouvre un produit, *Ajouter au panier*.
 3. *🛒 Voir Panier* → *✅ Commander*.
 4. Saisis nom, adresse, notes.
-5. Choisis **BTC** ou **USDT**.
+5. Choisis **BTC** ou **XMR**.
 6. Le bot affiche le wallet ; envoie capture / hash → relayé à l'admin.
 
 L'admin (toi, via `ADMIN_ID`) reçoit en MP :
@@ -63,8 +64,7 @@ Hostinger en mutualisé peut héberger Node.js — il faut activer **Node.js** d
    WEBHOOK_SECRET=une_chaine_aleatoire
    DATABASE_URL="mysql://USER:PASS@srv-host:3306/u123_shop"
    BTC_WALLET=bc1q...
-   USDT_WALLET=T...
-   USDT_NETWORK=TRC20
+   XMR_WALLET=4...
    ```
 6. **Bascule Prisma sur MySQL** : édite `prisma/schema.prisma` et change `provider = "mysql"`.
 7. Migrations + seed sur la base Hostinger :
@@ -103,7 +103,7 @@ src/
 │   │   ├── categories.js # Navigation catégories/sous-catégories
 │   │   ├── products.js   # Fiche produit + ajout panier
 │   │   ├── cart.js       # Affichage et modification du panier
-│   │   └── payment.js    # Choix BTC/USDT, création commande, capture preuve
+│   │   └── payment.js    # Choix BTC/XMR, création commande, capture preuve
 │   └── scenes/
 │       └── checkout.js   # Multi-étapes nom/adresse/notes
 ├── services/
@@ -114,7 +114,26 @@ src/
     └── client.js         # Singleton Prisma
 ```
 
-## 6. Étapes suivantes (post-MVP)
+## 6. Boutique web
+
+Une fois l’application lancée, la boutique est disponible sur `/` et le dashboard sur `/admin`.
+
+Le dashboard et son API nécessitent une authentification. Le mot de passe administrateur
+doit être enregistré sous forme de hash scrypt dans `ADMIN_PASSWORD_HASH`, tandis que
+`ADMIN_SESSION_SECRET` doit contenir une valeur aléatoire longue et privée. Ces valeurs
+doivent rester dans l’environnement de déploiement et ne doivent jamais être commitées.
+
+Le parcours web comprend :
+
+- une confirmation obligatoire « 21 ans ou plus » avant tout accès au catalogue ;
+- le catalogue et les variantes chargés directement depuis Prisma ;
+- la recherche, les filtres par catégorie et un panier persistant ;
+- la saisie des informations de livraison ;
+- le paiement BTC/XMR avec montant converti au cours actuel ;
+- l’enregistrement du hash de transaction et la notification Telegram de l’administrateur.
+- un espace client lié au navigateur avec tableau de bord, historique, statuts, preuves de paiement et dernières informations de livraison.
+
+## 7. Étapes suivantes (post-MVP)
 
 - 🎛️ **Dashboard admin Next.js** (`apps/admin/`) pour gérer produits/commandes/stocks.
 - 💸 **Paiement automatique** via NOWPayments / Coinbase Commerce (webhook IPN).

@@ -20,6 +20,10 @@ const config = {
     btc: process.env.BTC_WALLET || '',
     xmr: process.env.XMR_WALLET || '',
   },
+  adminAuth: {
+    passwordHash: required('ADMIN_PASSWORD_HASH'),
+    sessionSecret: required('ADMIN_SESSION_SECRET'),
+  },
 };
 
 module.exports = config;

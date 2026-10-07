@@ -142,6 +142,10 @@
       box-shadow: 0 6px 20px rgba(157, 78, 221, 0.45);
     }
 
+    .logout-form { margin-top: auto; padding-top: 1.5rem; }
+    .logout-btn { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--glass-border); border-radius: 10px; background: rgba(255,255,255,.04); color: var(--text-muted); font-family: inherit; font-size: .85rem; font-weight: 600; cursor: pointer; transition: var(--transition); }
+    .logout-btn:hover { border-color: var(--danger); color: #ff91a5; background: rgba(255,77,109,.08); }
+
     /* Glass Cards */
     .glass-card {
       background: var(--glass-bg);
@@ -362,6 +366,49 @@
       border-color: var(--primary);
       background: rgba(255, 255, 255, 0.08);
       box-shadow: 0 0 10px rgba(157, 78, 221, 0.2);
+    }
+
+    select.form-control {
+      min-height: 46px;
+      padding: 0 3rem 0 1rem;
+      appearance: none;
+      -webkit-appearance: none;
+      background-color: rgba(255, 255, 255, 0.055);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%234cc9f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 1rem center;
+      background-size: 18px;
+      cursor: pointer;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+    }
+
+    select.form-control:hover {
+      border-color: rgba(76, 201, 240, 0.45);
+      background-color: rgba(255, 255, 255, 0.08);
+    }
+
+    select.form-control:focus,
+    select.form-control:focus-visible {
+      border-color: var(--secondary);
+      box-shadow: 0 0 0 3px rgba(76, 201, 240, 0.14), 0 0 18px rgba(157, 78, 221, 0.16);
+    }
+
+    select.form-control:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    select.form-control option {
+      color: var(--text-main);
+      background: #15102a;
+    }
+
+    @media (forced-colors: active) {
+      select.form-control {
+        appearance: auto;
+        background-image: none;
+        padding-right: 1rem;
+      }
     }
 
     .form-row {
@@ -637,6 +684,7 @@
         </button>
       </li>
     </ul>
+    <form class="logout-form" method="post" action="/admin/logout"><button class="logout-btn" type="submit">Sign out</button></form>
   </aside>
 
   <!-- Main Workspace -->

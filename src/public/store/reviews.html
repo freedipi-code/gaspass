@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0171e3">
+  <meta name="description" content="Customer reviews across the Canna Express selection.">
+  <title>Reviews — Canna Express</title>
+  <link rel="icon" href="/images/cana.jpeg">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/reviews.css">
+</head>
+<body class="age-locked">
+  <div class="age-gate" id="ageGate" role="dialog" aria-modal="true" aria-labelledby="ageTitle">
+    <div class="age-modal-card">
+      <div class="age-shield" aria-hidden="true">21+</div>
+      <div id="ageQuestion">
+        <h1 id="ageTitle">Age Verification</h1>
+        <p>You must be 21 years or older to enter this website.<br>By clicking “I am 21+” you confirm you meet the minimum age requirement.</p>
+        <div class="age-actions"><button class="age-no" id="rejectAge">Under 21 — Exit</button><button class="age-yes" id="confirmAge">I am 21+ — Enter</button></div>
+      </div>
+      <div class="age-denied" id="ageDenied" hidden><strong>Access denied</strong><p>You must be at least 21 years old to view this store.</p></div>
+    </div>
+  </div>
+
+  <div class="store-shell" id="siteShell" aria-hidden="true">
+    <header class="header"><div class="header-inner">
+      <a class="header-logo" href="/" aria-label="Canna Express home"><span>CE</span></a>
+      <label class="header-search review-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 4 4"></path></svg><input id="reviewSearch" type="search" placeholder="Search reviews" autocomplete="off"></label>
+      <nav class="header-tabs reviews-tabs" aria-label="Main navigation"><a href="/">Shop</a><a class="active" href="/reviews.html"><i></i>Reviews</a><a href="#support">Support</a></nav>
+      <a class="profile-bubble" href="/account.html" aria-label="Customer space">CE</a><a class="review-shop-link" href="/">Browse products</a>
+    </div></header>
+
+    <nav class="catnav" aria-label="Review navigation"><div class="catnav-inner"><a class="catnav-tab" href="/">Explore</a><span class="catnav-tab active">Community reviews</span><span class="catnav-caption">Randomized product feedback from across the catalog</span></div></nav>
+
+    <main>
+      <section class="reviews-hero">
+        <div class="reviews-hero-copy"><span class="section-kicker">COMMUNITY FEEDBACK</span><h1>Real products.<br><em>Shared experiences.</em></h1><p>Explore customer feedback from across the Canna Express selection. A fresh mix appears whenever you visit.</p><a class="primary-action" href="/">Shop all products</a></div>
+        <div class="review-score-panel"><span class="score-stars" aria-hidden="true">★★★★★</span><strong id="averageRating">—</strong><small>Average displayed rating</small><i></i><span><b id="reviewCount">—</b> reviews in this selection</span></div>
+      </section>
+
+      <section class="reviews-section">
+        <div class="reviews-heading"><div><span class="section-kicker">CUSTOMER STORIES</span><h2>What people are saying</h2></div><button class="secondary-action shuffle-button" id="shuffleReviews"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7L20 8"></path><path d="M20 3v5h-5"></path></svg>Show another mix</button></div>
+        <div class="review-filters" id="reviewFilters"><button class="category-pill active" data-category="all">All products</button></div>
+        <div class="catalog-state" id="reviewsLoading"><span class="loader"></span><p>Gathering reviews…</p></div>
+        <div class="reviews-grid" id="reviewsGrid"></div>
+        <div class="empty-state" id="reviewsEmpty" hidden><h3>No reviews in this category</h3><p>Choose another category to continue browsing.</p></div>
+      </section>
+
+      <section class="reviews-cta"><div><span class="section-kicker">FIND YOUR NEXT FAVORITE</span><h2>Ready to explore the selection?</h2></div><a class="primary-action" href="/">Browse the catalog</a></section>
+    </main>
+
+    <footer id="support"><div class="footer-brand"><img src="/canna-express-footer-logo.png" alt="Canna Express"><p>Premium products. Private payments. Discreet shipping.</p></div><div><strong>ABOUT US</strong><a href="/reviews.html">Reviews</a><a href="/">Shop</a></div><div><strong>CUSTOMER CARE</strong><a href="mailto:support@example.com">Support</a><span>Adults 21+ only</span></div><div><strong>PAYMENT</strong><span>Bitcoin</span><span>Monero</span></div><p class="copyright">© <span id="year"></span> Canna Express · Adults 21+ only</p></footer>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+  <script src="/reviews.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0171e3">
+  <meta name="description" content="Canna Express customer space and order history.">
+  <title>Customer Space — Canna Express</title>
+  <link rel="icon" href="/images/cana.jpeg">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/account.css">
+</head>
+<body class="age-locked">
+  <div class="age-gate" id="ageGate" role="dialog" aria-modal="true" aria-labelledby="ageTitle">
+    <div class="age-modal-card">
+      <div class="age-shield" aria-hidden="true">21+</div>
+      <div id="ageQuestion"><h1 id="ageTitle">Age Verification</h1><p>You must be 21 years or older to access your customer space.</p><div class="age-actions"><button class="age-no" id="rejectAge">Under 21 — Exit</button><button class="age-yes" id="confirmAge">I am 21+ — Enter</button></div></div>
+      <div class="age-denied" id="ageDenied" hidden><strong>Access denied</strong><p>You must be at least 21 years old to view this content.</p></div>
+    </div>
+  </div>
+
+  <div class="store-shell" id="siteShell" aria-hidden="true">
+    <header class="header"><div class="header-inner">
+      <a class="header-logo" href="/" aria-label="Canna Express home"><span>CE</span></a>
+      <div class="account-header-label"><b>Customer Space</b><small>Private browser profile</small></div>
+      <nav class="header-tabs account-tabs" aria-label="Main navigation"><a href="/">Shop</a><a href="/reviews.html">Reviews</a><a class="active" href="/account.html"><i></i>Account</a></nav>
+      <a class="account-shop-link" href="/">Continue shopping</a>
+    </div></header>
+    <nav class="catnav" aria-label="Customer navigation"><div class="catnav-inner"><span class="catnav-tab active">Overview</span><a class="catnav-tab" href="#orders">Orders</a><a class="catnav-tab" href="#details">Account details</a><a class="catnav-tab" href="#support">Support</a></div></nav>
+
+    <main class="account-main">
+      <section class="account-hero">
+        <div class="account-avatar" id="accountAvatar">CE</div>
+        <div><span class="account-kicker">CUSTOMER DASHBOARD</span><h1>Welcome, <span id="customerName">Customer</span></h1><p>Track your orders, payment reviews and delivery information from one private space.</p></div>
+        <div class="browser-security"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 7 4v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V7z"></path><path d="m9 12 2 2 4-4"></path></svg><span><b>Browser protected</b><small>Your order history is linked to this browser.</small></span></div>
+      </section>
+
+      <section class="summary-grid" aria-label="Order summary">
+        <article><span>Total orders</span><strong id="totalOrders">—</strong><small>All web orders</small></article>
+        <article><span>Pending</span><strong id="pendingOrders">—</strong><small>Awaiting confirmation</small></article>
+        <article><span>Completed</span><strong id="completedOrders">—</strong><small>Paid or shipped</small></article>
+        <article><span>Total value</span><strong id="totalSpent">—</strong><small>Excluding cancelled orders</small></article>
+      </section>
+
+      <div class="account-layout">
+        <aside class="account-sidebar">
+          <a class="active" href="#orders"><span>01</span><b>My orders</b></a>
+          <a href="#details"><span>02</span><b>Delivery details</b></a>
+          <a href="#support"><span>03</span><b>Customer support</b></a>
+          <div class="privacy-note"><b>Private by design</b><p>No password is stored. Clearing this browser’s site data will disconnect this order history.</p></div>
+        </aside>
+
+        <div class="account-content">
+          <section class="account-panel" id="orders">
+            <div class="panel-heading"><div><span class="account-kicker">ORDER HISTORY</span><h2>Your recent orders</h2></div><button id="refreshAccount" class="account-refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7L20 8"></path><path d="M20 3v5h-5"></path></svg>Refresh</button></div>
+            <div class="account-loading" id="accountLoading"><span class="loader"></span><p>Loading your customer space…</p></div>
+            <div class="orders-list" id="ordersList"></div>
+            <div class="account-empty" id="accountEmpty" hidden><div class="empty-order-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6zM9 9V6a3 3 0 0 1 6 0v3"></path></svg></div><h3>No orders on this browser yet</h3><p>Your future web purchases will appear here automatically.</p><a class="primary-action" href="/">Explore products</a></div>
+          </section>
+
+          <section class="account-panel details-panel" id="details">
+            <div class="panel-heading"><div><span class="account-kicker">ACCOUNT DETAILS</span><h2>Latest delivery information</h2></div></div>
+            <div class="delivery-grid" id="deliveryDetails"><p>Delivery details will appear after your first order.</p></div>
+          </section>
+
+          <section class="support-panel" id="support"><div><span class="account-kicker">NEED HELP?</span><h2>Customer support</h2><p>Keep your order number nearby when contacting support.</p></div><a class="primary-action" href="mailto:support@example.com">Contact support</a></section>
+        </div>
+      </div>
+    </main>
+
+    <footer id="accountFooter"><div class="footer-brand"><img src="/canna-express-footer-logo.png" alt="Canna Express"><p>Premium products. Private payments. Discreet shipping.</p></div><p>© <span id="year"></span> Canna Express · Adults 21+ only</p></footer>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="/account.js" defer></script>
+</body>
+</html>

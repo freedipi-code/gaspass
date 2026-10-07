@@ -11,7 +11,6 @@ const STEPS = {
   CITY: 'city',
   APT: 'apt', // Only accessible via edit
   PAYMENT_METHOD: 'payment_method',
-  REFUND: 'refund',
   SUMMARY: 'summary',
 };
 
@@ -97,13 +96,6 @@ async function renderStep(ctx) {
       ];
       break;
 
-    case STEPS.REFUND:
-      text = `💳 *Payment Method*\nCurrency:\n*${data.paymentMethod === 'BTC' ? 'Bitcoin' : 'Monero'}*\nRefund address:\n...\n\n✏️ SEND ME YOUR ${data.paymentMethod} REFUND ADDRESS:`;
-      keyboard = [
-        [Markup.button.callback('< Payment Method', 'checkout:step:payment_method')]
-      ];
-      break;
-
     case STEPS.SUMMARY:
       const cart = await cartService.getCartWithItems(ctx.state.user.id);
       const total = cartService.computeTotal(cart);
@@ -123,10 +115,10 @@ async function renderStep(ctx) {
              `📦 *Shipping Details:*\n${data.shippingName}\n${data.shippingStreet}\n` +
              (data.shippingApt !== 'n/a' ? `${data.shippingApt}\n` : '') +
              `${data.shippingCity}\n${data.shippingCountry}\n\n` +
-             `💳 *Payment Method:*\n${data.paymentMethod} - ${data.paymentMethod === 'BTC' ? 'Bitcoin' : 'Monero'}\nRefund address:\n\`${data.refundAddress}\``;
+             `💳 *Payment Method:*\n${data.paymentMethod} - ${data.paymentMethod === 'BTC' ? 'Bitcoin' : 'Monero'}`;
              
       keyboard = [
-        [Markup.button.callback('⇐ Back', 'checkout:step:refund'), Markup.button.callback('✅ Place Order >', 'checkout:place_order')],
+        [Markup.button.callback('⇐ Back', 'checkout:step:payment_method'), Markup.button.callback('✅ Place Order >', 'checkout:place_order')],
         [Markup.button.callback('Add Order Notes', 'checkout:noop'), Markup.button.callback('Edit Payment Method', 'checkout:step:payment_method')],
         [Markup.button.callback('Empty Cart', 'cart:clear'), Markup.button.callback('Edit Shipping Details', 'checkout:edit:name')],
         [Markup.button.callback('Apply Vouchers', 'checkout:noop')]
@@ -184,10 +176,6 @@ checkout.on('text', async (ctx) => {
       data.shippingCity = text;
       data.step = STEPS.PAYMENT_METHOD;
       break;
-    case STEPS.REFUND:
-      data.refundAddress = text;
-      data.step = STEPS.SUMMARY;
-      break;
     default:
       return; // Ignore text if not in a text-input step
   }
@@ -209,7 +197,10 @@ checkout.action(/^checkout:edit:(.+)$/, async (ctx) => {
 checkout.action(/^checkout:step:(.+)$/, async (ctx) => {
   await ctx.answerCbQuery().catch(() => {});
   const data = ctx.scene.session.checkout;
-  data.step = ctx.match[1];
+  const requestedStep = ctx.match[1];
+  data.step = requestedStep === 'refund'
+    ? (data.paymentMethod ? STEPS.SUMMARY : STEPS.PAYMENT_METHOD)
+    : requestedStep;
   await renderStep(ctx);
 });
 
@@ -218,7 +209,7 @@ checkout.action(/^checkout:setpay:(BTC|XMR)$/, async (ctx) => {
   await ctx.answerCbQuery().catch(() => {});
   const data = ctx.scene.session.checkout;
   data.paymentMethod = ctx.match[1];
-  data.step = STEPS.REFUND;
+  data.step = STEPS.SUMMARY;
   await renderStep(ctx);
 });
 

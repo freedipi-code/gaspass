@@ -69,7 +69,7 @@ function register(bot) {
     const paymentUri = buildPaymentUri(order.paymentMethod, walletAddress, cryptoAmount);
     const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(paymentUri)}&size=400&margin=2`;
 
-    const message = `Order ${order.orderNumber}\n\n*Next step:*\n\nSend\n\`${cryptoAmount} ${order.paymentMethod}\`\nto\n\`${walletAddress}\`\n\nYou have 30 minutes to send the full payment (it can confirm on the blockchain later). Several payments within 30 minutes are OK. If your payment is detected after 30 minutes, it will be automatically refunded.\n\nOrder details: /ord\\_${order.orderNumber}`;
+    const message = `Order ${order.orderNumber}\n\n*Next step:*\n\nSend\n\`${cryptoAmount} ${order.paymentMethod}\`\nto\n\`${walletAddress}\`\n\nYou have 30 minutes to send the full payment (it can confirm on the blockchain later). Several payments within 30 minutes are OK. Payments detected after 30 minutes may require manual review.\n\nOrder details: /ord\\_${order.orderNumber}`;
 
     // Send the QR code with the message
     await ctx.replyWithPhoto(
