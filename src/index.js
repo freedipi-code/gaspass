@@ -53,6 +53,22 @@ async function startWebhook() {
   const url = config.webhook.domain.replace(/\/$/, '') + config.webhook.path;
   const me = await bot.telegram.getMe();
 
+  // Parse and validate Telegram payloads before they reach Telegraf. Some
+  // hosting probes POST an empty JSON object to the configured webhook URL.
+  app.use(config.webhook.path, express.json({ limit: '1mb' }), (req, res, next) => {
+    if (req.method !== 'POST') return res.sendStatus(405);
+    const update = req.body;
+    const eventTypes = update && typeof update === 'object'
+      ? Object.keys(update).filter((key) => key !== 'update_id')
+      : [];
+    if (!Number.isInteger(update?.update_id) || eventTypes.length === 0) {
+      console.warn('[telegram] ignored invalid webhook payload');
+      return res.sendStatus(204);
+    }
+    console.log(`[telegram] webhook accepted update=${update.update_id} event=${eventTypes[0]}`);
+    return next();
+  });
+
   setupExpressApp(app);
 
   // Webhook Telegram avec validation par secret token
