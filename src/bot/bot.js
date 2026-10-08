@@ -16,6 +16,17 @@ const paymentHandler = require('./handlers/payment');
 
 const bot = new Telegraf(config.botToken);
 
+// Send replies through the Bot API instead of embedding the first reply in the
+// webhook HTTP response. This makes delivery failures visible to bot.catch and
+// avoids proxy-specific issues with webhook replies in production.
+bot.telegram.webhookReply = false;
+
+// Keep production diagnostics useful without logging message contents.
+bot.use(async (ctx, next) => {
+  console.log(`[telegram] update=${ctx.update.update_id} type=${ctx.updateType}`);
+  return next();
+});
+
 // Middleware: get-or-create the Prisma User from telegramId
 bot.use(async (ctx, next) => {
   if (!ctx.from) return next();

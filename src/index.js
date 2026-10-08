@@ -51,6 +51,7 @@ async function startWebhook() {
   }
   const app = express();
   const url = config.webhook.domain.replace(/\/$/, '') + config.webhook.path;
+  const me = await bot.telegram.getMe();
 
   setupExpressApp(app);
 
@@ -63,7 +64,7 @@ async function startWebhook() {
   }));
 
   app.listen(config.webhook.port, () => {
-    console.log(`🤖 Bot lancé en mode WEBHOOK sur le port ${config.webhook.port}`);
+    console.log(`🤖 Bot lancé en mode WEBHOOK sur le port ${config.webhook.port} — @${me.username}`);
     console.log(`   URL configurée : ${url}`);
     console.log(`📊 Admin Dashboard disponible sur /admin`);
   });
