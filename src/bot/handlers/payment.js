@@ -4,6 +4,16 @@ const orderService = require('../../services/order.service');
 const notifyService = require('../../services/notify.service');
 const cryptoService = require('../../services/crypto.service');
 
+function checkoutErrorMessage(error) {
+  if (error?.message === 'Cart empty') {
+    return 'Your cart is empty. Add a product and try again.';
+  }
+  if (error?.message?.startsWith('Insufficient stock for ')) {
+    return error.message;
+  }
+  return 'The order could not be created. Please try again in a moment.';
+}
+
 function register(bot) {
   bot.action('checkout', async (ctx) => {
     await ctx.answerCbQuery().catch(() => {});
@@ -13,9 +23,13 @@ function register(bot) {
 
   // Catch the "Place Order >" action from the checkout scene summary
   bot.action('checkout:place_order', async (ctx) => {
+    // Telegram callback queries must be answered quickly. Any later result is
+    // sent as a regular message instead of a size-limited callback alert.
+    await ctx.answerCbQuery('Creating order…').catch(() => {});
+
     const data = ctx.scene?.session?.checkout;
     if (!data || !data.shippingName || !data.paymentMethod) {
-      await ctx.answerCbQuery('Session expired, please start over.', { show_alert: true });
+      await ctx.reply('Session expired, please start over.').catch(() => {});
       return ctx.scene?.leave();
     }
 
@@ -23,11 +37,10 @@ function register(bot) {
     try {
       order = await orderService.createOrderFromCart(ctx.state.user.id, data);
     } catch (e) {
-      await ctx.answerCbQuery(e.message, { show_alert: true });
+      console.error('Checkout order creation failed:', e);
+      await ctx.reply(checkoutErrorMessage(e)).catch(() => {});
       return;
     }
-
-    await ctx.answerCbQuery('Order created ✅').catch(() => {});
 
     // Calculate crypto amount
     let cryptoAmount = '...';

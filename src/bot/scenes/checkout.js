@@ -3,6 +3,13 @@ const cartService = require('../../services/cart.service');
 const shop = require('../../shop.config');
 const { formatPrice } = require('../keyboards');
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 // -- Checkout State Machine --
 const STEPS = {
   NAME: 'name',
@@ -17,16 +24,16 @@ const STEPS = {
 
 // Helpers to format the step prompts
 function buildShippingHeader() {
-  return `📦 *Shipping Details*\n`;
+  return `📦 <b>Shipping Details</b>\n`;
 }
 
 function buildShippingRecap(data) {
   let recap = buildShippingHeader();
-  if (data.shippingName) recap += `Recipient Full Name:\n*${data.shippingName}*\n`;
-  if (data.shippingCountry) recap += `Country:\n*${data.shippingCountry}*\n`;
-  if (data.shippingStreet) recap += `Street Address:\n*${data.shippingStreet}*\n`;
-  if (data.shippingApt) recap += `Apartment number or PO Box:\n_${data.shippingApt}_\n`;
-  if (data.shippingCity) recap += `City:\n*${data.shippingCity}*\n`;
+  if (data.shippingName) recap += `Recipient Full Name:\n<b>${escapeHtml(data.shippingName)}</b>\n`;
+  if (data.shippingCountry) recap += `Country:\n<b>${escapeHtml(data.shippingCountry)}</b>\n`;
+  if (data.shippingStreet) recap += `Street Address:\n<b>${escapeHtml(data.shippingStreet)}</b>\n`;
+  if (data.shippingApt) recap += `Apartment number or PO Box:\n<i>${escapeHtml(data.shippingApt)}</i>\n`;
+  if (data.shippingCity) recap += `City:\n<b>${escapeHtml(data.shippingCity)}</b>\n`;
   return recap;
 }
 
@@ -89,7 +96,7 @@ async function renderStep(ctx) {
       break;
 
     case STEPS.PAYMENT_METHOD:
-      text = `💳 *Payment Method*\n\n💬 Select your currency:`;
+      text = `💳 <b>Payment Method</b>\n\n💬 Select your currency:`;
       keyboard = [
         [Markup.button.callback('Bitcoin (BTC)', 'checkout:setpay:BTC')],
         [Markup.button.callback('Litecoin (LTC)', 'checkout:setpay:LTC')],
@@ -98,7 +105,7 @@ async function renderStep(ctx) {
       break;
 
     case STEPS.REFUND:
-      text = `💳 *Payment Method*\nCurrency:\n*${data.paymentMethod === 'BTC' ? 'Bitcoin' : 'Litecoin'}*\nRefund address:\n...\n\n✏️ SEND ME YOUR ${data.paymentMethod} REFUND ADDRESS:`;
+      text = `💳 <b>Payment Method</b>\nCurrency:\n<b>${data.paymentMethod === 'BTC' ? 'Bitcoin' : 'Litecoin'}</b>\nRefund address:\n...\n\n✏️ SEND ME YOUR ${escapeHtml(data.paymentMethod)} REFUND ADDRESS:`;
       keyboard = [
         [Markup.button.callback('< Payment Method', 'checkout:step:payment_method')]
       ];
@@ -114,16 +121,16 @@ async function renderStep(ctx) {
         let pIndex = productIds.indexOf(it.productId);
         let link = pIndex >= 0 ? `/p${pIndex}` : `/p_${it.productId}`;
         const label = it.variant ? it.variant.label : '1 item';
-        return `*${it.product.name}*\n${link}\n(by ${shop.vendorName})\n${label} x${it.quantity} = ${formatPrice(it.unitPrice * it.quantity)}`;
+        return `<b>${escapeHtml(it.product.name)}</b>\n${escapeHtml(link)}\n(by ${escapeHtml(shop.vendorName)})\n${escapeHtml(label)} x${it.quantity} = ${escapeHtml(formatPrice(it.unitPrice * it.quantity))}`;
       }).join('\n\n');
 
-      let shippingText = `Shipping:\n${shop.vendorName}—$0.00`;
+      let shippingText = `Shipping:\n${escapeHtml(shop.vendorName)}—$0.00`;
 
-      text = `🛒 *My Cart*\n\n${itemsText}\n\n${shippingText}\n\n*Cart Total: ${formatPrice(total)}*\n\n` +
-             `📦 *Shipping Details:*\n${data.shippingName}\n${data.shippingStreet}\n` +
-             (data.shippingApt !== 'n/a' ? `${data.shippingApt}\n` : '') +
-             `${data.shippingCity}\n${data.shippingCountry}\n\n` +
-             `💳 *Payment Method:*\n${data.paymentMethod} - ${data.paymentMethod === 'BTC' ? 'Bitcoin' : 'Litecoin'}\nRefund address:\n\`${data.refundAddress}\``;
+      text = `🛒 <b>My Cart</b>\n\n${itemsText}\n\n${shippingText}\n\n<b>Cart Total: ${escapeHtml(formatPrice(total))}</b>\n\n` +
+             `📦 <b>Shipping Details:</b>\n${escapeHtml(data.shippingName)}\n${escapeHtml(data.shippingStreet)}\n` +
+             (data.shippingApt !== 'n/a' ? `${escapeHtml(data.shippingApt)}\n` : '') +
+             `${escapeHtml(data.shippingCity)}\n${escapeHtml(data.shippingCountry)}\n\n` +
+             `💳 <b>Payment Method:</b>\n${escapeHtml(data.paymentMethod)} - ${data.paymentMethod === 'BTC' ? 'Bitcoin' : 'Litecoin'}\nRefund address:\n<code>${escapeHtml(data.refundAddress)}</code>`;
              
       keyboard = [
         [Markup.button.callback('⇐ Back', 'checkout:step:refund'), Markup.button.callback('✅ Place Order >', 'checkout:place_order')],
@@ -134,7 +141,7 @@ async function renderStep(ctx) {
       break;
   }
 
-  const opts = { parse_mode: 'Markdown', reply_markup: { inline_keyboard: keyboard } };
+  const opts = { parse_mode: 'HTML', reply_markup: { inline_keyboard: keyboard } };
   
   // We always send a new message for a new prompt as it looks better for conversational flow,
   // except when editing.

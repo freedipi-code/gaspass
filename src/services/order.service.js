@@ -11,13 +11,16 @@ async function createOrderFromCart(userId, orderData) {
   const cart = await cartService.getCartWithItems(userId);
   if (!cart.items.length) throw new Error('Cart empty');
 
-  // Skip stock check since we removed stock from variant for now
-  // We just assume stock is infinite or managed globally
-  // Wait, stock is on the Product. Let's check Product stock.
-  for (const it of cart.items) {
-    if (it.quantity > it.product.stock) {
-      throw new Error(`Insufficient stock for ${it.product.name} (Max ${it.product.stock})`);
-    }
+  // Several variants can belong to the same product, so stock must be checked
+  // against the combined quantity rather than one cart line at a time.
+  const quantitiesByProduct = new Map();
+  for (const item of cart.items) {
+    const current = quantitiesByProduct.get(item.productId) || {
+      quantity: 0,
+      productName: item.product.name,
+    };
+    current.quantity += item.quantity;
+    quantitiesByProduct.set(item.productId, current);
   }
 
   const total = cartService.computeTotal(cart);
@@ -52,21 +55,34 @@ async function createOrderFromCart(userId, orderData) {
       include: { items: { include: { product: true, variant: true } }, user: true },
     });
 
-    // Décrémente le stock du produit et augmente purchaseCount
-    for (const it of cart.items) {
-      await tx.product.update({
-        where: { id: it.productId },
+    // The stock condition and decrement happen in the same query, preventing
+    // concurrent checkouts from taking stock below zero.
+    for (const [productId, item] of quantitiesByProduct) {
+      const result = await tx.product.updateMany({
+        where: {
+          id: productId,
+          stock: { gte: item.quantity },
+        },
         data: { 
-          stock: { decrement: it.quantity },
-          purchaseCount: { increment: it.quantity }
+          stock: { decrement: item.quantity },
+          purchaseCount: { increment: item.quantity },
         },
       });
+
+      if (result.count !== 1) {
+        throw new Error(`Insufficient stock for ${item.productName}`);
+      }
     }
 
     // Vide le panier
     await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
     return created;
+  }, {
+    // A hosted database can need more than Prisma's 5-second default when an
+    // order contains several products. Both values remain configurable.
+    maxWait: Number(process.env.DB_TRANSACTION_MAX_WAIT_MS || 10000),
+    timeout: Number(process.env.DB_TRANSACTION_TIMEOUT_MS || 20000),
   });
 
   return order;
