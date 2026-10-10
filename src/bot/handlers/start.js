@@ -13,11 +13,7 @@ function escapeHtml(value) {
 }
 
 function homeText() {
-  const lines = [
-    '✅ <b>Shop is Online!</b>',
-    '',
-    escapeHtml(shop.welcomeText),
-  ];
+  const lines = [shop.welcomeHtml || escapeHtml(shop.welcomeText)];
 
   if (shop.footerText) {
     lines.push('');

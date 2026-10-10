@@ -7,7 +7,7 @@
 
 module.exports = {
   // Display name shown in welcome message header
-  name: "LONDON EMERALDS – TBC SHOP BOT",
+  name: "The 10/10 Boys Global Shop",
 
   // Vendor name shown on product pages (-- by VendorName)
   vendorName: "Buaking",
@@ -18,27 +18,82 @@ module.exports = {
 
   // Entry message shown before the main menu.
   welcomeText: [
-    "Welcome to LONDON EMERALDS – TBC self-service shop 🍃.",
+    "Welcome to The 10/10 Boys self-service vape shop 🍃 .",
     "",
-    "Ships From/To: United Kingdom 🇬🇧 / European Union 🇪🇺 🚚",
+    "Ships From/To: United Kingdom 🇬🇧 / 🇪🇺 European Union ⚡🚚",
     "",
     "Currency: GBP / EUR 💷💶",
     "",
-    "Currently Accepting: Bitcoin (BTC) and Litecoin (LTC)",
+    "Currently Accepting: Crypto Tether (USDT), Ethereum (ETH), Bitcoin (BTC), and Solana (SOL)",
     "",
-    "⭐ Rating & Reviews: 4.8 / 5",
+    "Rating & Reviews: 5 ⭐ : 5 ⭐ 97.33% (2625)",
     "",
-    "🚚 Tracked delivery is available for every supported country.",
+    "🆓🚚 Free UK tracked next day delivery on orders over £250 / Free EU tracked 2 - 4 days delivery on orders over €300!",
     "",
-    "⏰ Orders placed before 12:00 PM Monday–Friday are dispatched the same day. Orders placed later are dispatched the next business day.",
+    "⏰ Place your order before 12:00 PM Monday - Friday, and we'll dispatch it on the same day!",
+    "All orders placed after 12:00 PM will be dispatched on the next business day.",
     "",
-    "Start with Help: /help or /support 📘.",
-    "Type /menu then choose Products, or use /products 📦.",
+    "-- -- -- -- -- -- --",
+    "",
+    "Start with Help! /help or /support 📘 .",
+    "",
+    "Type /menu then click Products (Button) or just type in /products 📦 .",
+    "",
+    "Type /coupons to find discount codes 💰 .",
     "",
     "Happy shopping 🛍️",
     "",
+    "-- -- -- -- -- -- --",
+    "",
+    "Note: For Spain and Portugal we only ship to Mainland and not the islands.",
+    "",
     "Peace and Love ✌️❤️",
-    "LONDON EMERALDS – TBC",
+    "",
+    "The 10/10 Boys ®",
+    "",
+    "Telegram Support: @The1010Boys_Support 📢",
+    "",
+    "Instagram: @the1010boys.global 📸",
+  ].join("\n"),
+
+  // Rich-text version used by the country-selection welcome screen.
+  welcomeHtml: [
+    "Welcome to <b>The 10/10 Boys</b> self-service vape shop 🍃 .",
+    "",
+    "Ships From/To: <b>United Kingdom 🇬🇧 / 🇪🇺 European Union</b> ⚡🚚",
+    "",
+    "Currency: <b>GBP / EUR</b> 💷💶",
+    "",
+    "Currently Accepting: <b>Crypto</b> Tether (USDT), Ethereum (ETH), Bitcoin (BTC), and Solana (SOL)",
+    "",
+    "<b>Rating &amp; Reviews:</b> 5 ⭐ : 5 ⭐ 97.33% (2625)",
+    "",
+    "🆓🚚 <b>Free UK tracked next day delivery on orders over £250 / Free EU tracked 2 - 4 days delivery on orders over €300!</b>",
+    "",
+    "⏰ Place your order before 12:00 PM Monday - Friday, and we'll dispatch it on the same day!",
+    "All orders placed after 12:00 PM will be dispatched on the next business day.",
+    "",
+    "-- -- -- -- -- -- --",
+    "",
+    "Start with Help! /help or /support 📘 .",
+    "",
+    "Type /menu then click Products (Button) or just type in /products 📦 .",
+    "",
+    "Type /coupons to find discount codes 💰 .",
+    "",
+    "Happy shopping 🛍️",
+    "",
+    "-- -- -- -- -- -- --",
+    "",
+    "<b>Note: For Spain and Portugal we only ship to Mainland and not the islands.</b>",
+    "",
+    "Peace and Love ✌️❤️",
+    "",
+    "<b>The 10/10 Boys ®</b>",
+    "",
+    "<b>Telegram Support: <a href=\"https://t.me/The1010Boys_Support\">@The1010Boys_Support</a></b> 📢",
+    "",
+    "Instagram: <b><a href=\"https://www.instagram.com/the1010boys.global\">@the1010boys.global</a></b> 📸",
   ].join("\n"),
 
   mainMenuTitle: "🔷 Main Menu\nChoose an option below:",
@@ -75,14 +130,14 @@ module.exports = {
   backupBotLabel: "Backup Bot",
 
   // Owner / support contact (Telegram username without @)
-  ownerUsername: "@SamMcrPharmaUK",         // e.g. "yourhandle" — empty hides the line
+  ownerUsername: "@The1010Boys_Support",         // e.g. "yourhandle" — empty hides the line
   ownerStatusLine: "🟢 Online",  // overridden if you want dynamic status later
 
   // Footer ////////////////////////////
  //// don't forget this place is for channel link
 
   footerLink: "",
-  footerText: "Powered by TBC | Join TBC Public Chat",
+  footerText: "",
 
 
   ///////////
