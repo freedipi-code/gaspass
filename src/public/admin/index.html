@@ -489,7 +489,7 @@
 
     .variant-row {
       display: grid;
-      grid-template-columns: 1fr 120px 60px 40px;
+      grid-template-columns: 90px 1fr 120px 60px 40px;
       gap: 0.75rem;
       align-items: center;
       margin-bottom: 0.75rem;
@@ -784,9 +784,15 @@
           <label for="prod-name">Product Name *</label>
           <input type="text" id="prod-name" class="form-control" required placeholder="e.g. Riz Basmati 5kg">
         </div>
-        <div class="form-group" style="display: none;">
-          <input type="number" step="0.01" id="prod-price" value="0">
-          <input type="number" id="prod-stock" value="999">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="prod-price">Base unit price (£) *</label>
+            <input type="number" min="0" step="0.01" id="prod-price" class="form-control" required placeholder="60.00">
+          </div>
+          <div class="form-group">
+            <label for="prod-stock">Available stock (units) *</label>
+            <input type="number" min="0" step="1" id="prod-stock" class="form-control" required placeholder="70">
+          </div>
         </div>
         <div class="form-group">
           <label>Categories * <span style="font-weight: 400;">(select one or more)</span></label>
@@ -811,7 +817,7 @@
             <span>📦 Quantity Variants</span>
             <button type="button" class="add-variant-btn" onclick="addVariantRow()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.8rem;">+ Add</button>
           </h3>
-          <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1rem;">Define quantity/size variants with their own price (e.g. 1kg = $10, 5kg = $45).</p>
+          <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1rem;">Each tier adds its quantity to the cart and uses the entered unit price. Example: 6 + units + £50 means 6 × £50.</p>
           <div id="variants-container"></div>
           <button type="button" class="add-variant-btn" onclick="addVariantRow()">➕ Add Variant</button>
         </div>
@@ -921,20 +927,20 @@
           : '<span class="badge badge-danger">Hidden</span>';
 
         // Price display: show range if variants exist
-        let priceDisplay = `$${p.price.toFixed(2)}`;
+        let priceDisplay = `£${p.price.toFixed(2)}`;
         if (p.variants && p.variants.length > 0) {
           const prices = p.variants.map(v => v.price).sort((a, b) => a - b);
           if (prices.length === 1) {
-            priceDisplay = `$${prices[0].toFixed(2)}`;
+            priceDisplay = `£${prices[0].toFixed(2)}`;
           } else {
-            priceDisplay = `$${prices[0].toFixed(2)} – $${prices[prices.length-1].toFixed(2)}`;
+            priceDisplay = `£${prices[0].toFixed(2)} – £${prices[prices.length-1].toFixed(2)}`;
           }
         }
 
         // Variants display
         let variantsDisplay = '<span style="color: var(--text-muted);">—</span>';
         if (p.variants && p.variants.length > 0) {
-          variantsDisplay = `<div class="variant-labels">${p.variants.map(v => `<span class="variant-badge">${escapeHtml(v.label)}</span>`).join('')}</div>`;
+          variantsDisplay = `<div class="variant-labels">${p.variants.map(v => `<span class="variant-badge">${v.quantity} ${escapeHtml(v.label)} @ £${v.price.toFixed(2)}</span>`).join('')}</div>`;
         }
 
         tr.innerHTML = `
@@ -1029,7 +1035,7 @@
       container.innerHTML = '';
       if (prod.variants && prod.variants.length > 0) {
         prod.variants.forEach(v => {
-          addVariantRow(v.label, v.price, v.sortOrder);
+          addVariantRow(v.quantity, v.label, v.price, v.sortOrder, v.id);
         });
       }
 
@@ -1045,19 +1051,16 @@
       const variantRows = document.querySelectorAll('.variant-row');
       const variants = [];
       variantRows.forEach((row, i) => {
+        const quantity = row.querySelector('.var-quantity').value;
         const label = row.querySelector('.var-label').value.trim();
         const price = row.querySelector('.var-price').value;
         const sortOrder = row.querySelector('.var-sort')?.value || i;
-        if (label && price) {
-          variants.push({ label, price: parseFloat(price), sortOrder: parseInt(sortOrder, 10) });
+        if (quantity && label && price) {
+          variants.push({ id: Number(row.dataset.variantId) || undefined, quantity: parseInt(quantity, 10), label, price: parseFloat(price), sortOrder: parseInt(sortOrder, 10) });
         }
       });
       
-      // Determine base price from the first variant
-      let basePrice = 0;
-      if (variants.length > 0) {
-        basePrice = variants[0].price;
-      }
+      const basePrice = parseFloat(document.getElementById('prod-price').value);
 
       const categoryIds = Array.from(
         document.querySelectorAll('input[name="product-category"]:checked')
@@ -1070,7 +1073,7 @@
       const data = {
         name: document.getElementById('prod-name').value,
         price: basePrice,
-        stock: 999, // Default stock as quantity is handled implicitly
+        stock: parseInt(document.getElementById('prod-stock').value, 10),
         categoryIds,
         image: document.getElementById('prod-image').value || null,
         description: document.getElementById('prod-desc').value || null,
@@ -1113,13 +1116,15 @@
 
     // --- VARIANT ROW MANAGEMENT ---
 
-    function addVariantRow(label = '', price = '', sortOrder = 0) {
+    function addVariantRow(quantity = '', label = 'units', price = '', sortOrder = 0, id = '') {
       const container = document.getElementById('variants-container');
       const row = document.createElement('div');
       row.className = 'variant-row';
+      row.dataset.variantId = id;
       row.innerHTML = `
-        <input type="text" class="var-label" placeholder="e.g. 1kg, 5kg, 28g..." value="${escapeHtml(String(label))}">
-        <input type="number" step="0.01" class="var-price" placeholder="Price $" value="${price}">
+        <input type="number" min="1" step="1" class="var-quantity" placeholder="Qty" value="${quantity}">
+        <input type="text" class="var-label" placeholder="units, packs, g..." value="${escapeHtml(String(label))}">
+        <input type="number" min="0" step="0.01" class="var-price" placeholder="Unit £" value="${price}">
         <input type="number" class="var-sort" placeholder="#" value="${sortOrder}" style="width: 50px;">
         <button type="button" class="variant-remove-btn" onclick="this.parentElement.remove()">✕</button>
       `;

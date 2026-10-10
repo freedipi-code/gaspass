@@ -117,23 +117,29 @@ async function showCatalog(ctx, page = 0, categoryFilter = 'all') {
   const category = await getCategory(categoryFilter);
 
   if (categoryFilter && categoryFilter !== 'all') {
+    const totalPages = Math.max(1, Math.ceil(allProducts.length / PRODUCTS_PER_PAGE));
+    const safePage = Math.max(0, Math.min(Number(page) || 0, totalPages - 1));
+    const pageProducts = allProducts.slice(
+      safePage * PRODUCTS_PER_PAGE,
+      safePage * PRODUCTS_PER_PAGE + PRODUCTS_PER_PAGE,
+    );
     const cartSummary = await getCartSummary(ctx.state.user.id);
-    const text = buildProductListText(category);
-    const keyboard = productListKeyboard(allProducts, category, cartSummary);
+    const text = '<b>Products</b>\nSelect a category or product:';
+    const keyboard = productListKeyboard(pageProducts, category, cartSummary, safePage, totalPages);
 
     ctx.session = ctx.session || {};
     ctx.session.catalogProducts = allProducts.map((p) => p.id);
     ctx.session.catalogCategory = categoryFilter;
-    ctx.session.catalogPage = 0;
+    ctx.session.catalogPage = safePage;
 
     if (ctx.callbackQuery) {
       await ctx.answerCbQuery().catch(() => {});
       try {
         if (ctx.callbackQuery.message?.photo) {
           await ctx.deleteMessage().catch(() => {});
-          await ctx.reply(text, keyboard);
+          await ctx.reply(text, { parse_mode: 'HTML', ...keyboard });
         } else {
-          await ctx.editMessageText(text, keyboard);
+        await ctx.editMessageText(text, { parse_mode: 'HTML', ...keyboard });
         }
         return;
       } catch (_) {
@@ -141,7 +147,7 @@ async function showCatalog(ctx, page = 0, categoryFilter = 'all') {
       }
     }
 
-    await ctx.reply(text, keyboard);
+    await ctx.reply(text, { parse_mode: 'HTML', ...keyboard });
     return;
   }
 
@@ -213,10 +219,13 @@ function register(bot) {
   });
 
   // Category filter
-  bot.action(/^catalog:cat:(.+)$/, async (ctx) => {
+  bot.action(/^catalog:cat:(\d+)(?::(\d+))?$/, async (ctx) => {
     const catFilter = ctx.match[1];
-    return showCatalog(ctx, 0, catFilter);
+    const page = Number(ctx.match[2] || 0);
+    return showCatalog(ctx, page, catFilter);
   });
+
+  bot.action('catalog:cat:all', (ctx) => showCatalog(ctx, 0, 'all'));
 
   // Back to catalog from product detail
   bot.action(/^catalog:back:(.+)$/, async (ctx) => {

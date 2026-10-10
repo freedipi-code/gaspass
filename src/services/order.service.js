@@ -23,7 +23,9 @@ async function createOrderFromCart(userId, orderData) {
     quantitiesByProduct.set(item.productId, current);
   }
 
-  const total = cartService.computeTotal(cart);
+  const subtotal = cartService.computeTotal(cart);
+  const shippingFee = Number(orderData.shippingFee) || 0;
+  const total = subtotal + shippingFee;
   const orderNumber = generateOrderNumber();
 
   const order = await prisma.$transaction(async (tx) => {
@@ -32,12 +34,17 @@ async function createOrderFromCart(userId, orderData) {
         orderNumber,
         userId,
         total,
+        subtotal,
+        shippingFee,
+        fiatCurrency: orderData.fiatCurrency || 'GBP',
+        email: orderData.email || null,
+        shippingMethod: orderData.shippingMethod || null,
         paymentMethod: orderData.paymentMethod,
         shippingName: orderData.shippingName,
         shippingCountry: orderData.shippingCountry,
-        shippingStreet: orderData.shippingStreet,
+        shippingStreet: orderData.shippingAddress || orderData.shippingStreet,
         shippingApt: orderData.shippingApt || null,
-        shippingCity: orderData.shippingCity,
+        shippingCity: orderData.shippingCity || '',
         shippingState: orderData.shippingState || null,
         shippingZip: orderData.shippingZip || null,
         notes: orderData.notes || null,
@@ -102,4 +109,11 @@ async function markProofReceived(orderId, proofMessage) {
   });
 }
 
-module.exports = { createOrderFromCart, getOrder, markProofReceived };
+async function setCryptoAmount(orderId, cryptoAmount) {
+  return prisma.order.update({
+    where: { id: Number(orderId) },
+    data: { cryptoAmount: String(cryptoAmount) },
+  });
+}
+
+module.exports = { createOrderFromCart, getOrder, markProofReceived, setCryptoAmount };

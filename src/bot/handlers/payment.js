@@ -3,15 +3,109 @@ const config = require('../../config');
 const orderService = require('../../services/order.service');
 const notifyService = require('../../services/notify.service');
 const cryptoService = require('../../services/crypto.service');
+const { formatPrice } = require('../keyboards');
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
 
 function checkoutErrorMessage(error) {
-  if (error?.message === 'Cart empty') {
-    return 'Your cart is empty. Add a product and try again.';
-  }
-  if (error?.message?.startsWith('Insufficient stock for ')) {
-    return error.message;
-  }
+  if (error?.message === 'Cart empty') return 'Your cart is empty. Add a product and try again.';
+  if (error?.message?.startsWith('Insufficient stock for ')) return error.message;
   return 'The order could not be created. Please try again in a moment.';
+}
+
+async function completeCheckout(ctx) {
+  const data = ctx.session?.checkout;
+  if (!data?.shippingAddress || !data?.email || !data?.shippingMethod || !data?.paymentMethod) {
+    await ctx.answerCbQuery('Checkout session expired', { show_alert: true }).catch(() => {});
+    await ctx.reply('Your checkout session expired. Please open your cart and try again.');
+    return null;
+  }
+  if (ctx.session.checkoutProcessing) {
+    await ctx.answerCbQuery('Order already being created').catch(() => {});
+    return null;
+  }
+
+  const walletAddress = data.paymentMethod === 'BTC' ? config.wallets.btc : config.wallets.ltc;
+  if (!walletAddress) {
+    await ctx.answerCbQuery().catch(() => {});
+    await ctx.reply(`${data.paymentMethod} payments are temporarily unavailable. Please choose another payment method.`);
+    return null;
+  }
+
+  ctx.session.checkoutProcessing = true;
+  await ctx.answerCbQuery('Creating order…').catch(() => {});
+
+  try {
+    let order = await orderService.createOrderFromCart(ctx.state.user.id, data);
+    const amount = await cryptoService.convertFiatToCrypto(
+      order.total,
+      order.paymentMethod,
+      order.fiatCurrency,
+    );
+    const cryptoAmount = amount.toFixed(8);
+    order = await orderService.setCryptoAmount(order.id, cryptoAmount);
+    order = await orderService.getOrder(order.id);
+
+    const uriPrefix = order.paymentMethod === 'BTC' ? 'bitcoin:' : 'litecoin:';
+    const paymentUri = `${uriPrefix}${walletAddress}?amount=${cryptoAmount}`;
+    const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(paymentUri)}&size=600&margin=2`;
+    const network = order.paymentMethod === 'BTC' ? 'BTC' : 'LTC';
+
+    const paymentText = [
+      `Order reference: <b>${escapeHtml(order.orderNumber)}</b>`,
+      '',
+      `<b>Pay with ${order.paymentMethod} on ${network} network</b>`,
+      '',
+      `• Fiat amount: <b>${escapeHtml(formatPrice(order.total))} ${escapeHtml(order.fiatCurrency)}</b>`,
+      `• Total to send: <code>${cryptoAmount} ${order.paymentMethod}</code>`,
+      '',
+      '• Address:',
+      `<code>${escapeHtml(walletAddress)}</code>`,
+      '',
+      '• <b>IMPORTANT:</b> Copy the address exactly and select the correct network when sending.',
+    ].join('\n');
+
+    try {
+      await ctx.replyWithPhoto(
+        { url: qrUrl },
+        { caption: paymentText, parse_mode: 'HTML' },
+      );
+    } catch (qrError) {
+      console.error('Payment QR delivery failed:', qrError.message);
+      await ctx.reply(paymentText, { parse_mode: 'HTML' });
+    }
+
+    const itemLines = order.items.map((item) =>
+      `${escapeHtml(item.product.name)} - x${item.quantity}`);
+    await ctx.reply([
+      'Your order status is now <b>open</b>',
+      `🟢 <b>${escapeHtml(order.orderNumber)}</b>`,
+      '',
+      ...itemLines,
+    ].join('\n'), {
+      parse_mode: 'HTML',
+      ...Markup.inlineKeyboard([
+        [Markup.button.callback('📦 My Orders', 'orders')],
+        [Markup.button.callback('🤖 Menu', 'home')],
+      ]),
+    });
+
+    await notifyService.notifyNewOrder({ telegram: ctx.telegram }, order, ctx);
+    ctx.session.awaitingProofFor = order.id;
+    delete ctx.session.checkout;
+    return order;
+  } catch (error) {
+    console.error('Checkout order creation failed:', error);
+    await ctx.reply(checkoutErrorMessage(error)).catch(() => {});
+    return null;
+  } finally {
+    delete ctx.session.checkoutProcessing;
+  }
 }
 
 function register(bot) {
@@ -21,75 +115,9 @@ function register(bot) {
   });
   bot.command('checkout', (ctx) => ctx.scene.enter('checkout'));
 
-  // Catch the "Place Order >" action from the checkout scene summary
-  bot.action('checkout:place_order', async (ctx) => {
-    // Telegram callback queries must be answered quickly. Any later result is
-    // sent as a regular message instead of a size-limited callback alert.
-    await ctx.answerCbQuery('Creating order…').catch(() => {});
+  // Compatibility with checkout messages created before this flow update.
+  bot.action('checkout:place_order', completeCheckout);
 
-    const data = ctx.scene?.session?.checkout;
-    if (!data || !data.shippingName || !data.paymentMethod) {
-      await ctx.reply('Session expired, please start over.').catch(() => {});
-      return ctx.scene?.leave();
-    }
-
-    let order;
-    try {
-      order = await orderService.createOrderFromCart(ctx.state.user.id, data);
-    } catch (e) {
-      console.error('Checkout order creation failed:', e);
-      await ctx.reply(checkoutErrorMessage(e)).catch(() => {});
-      return;
-    }
-
-    // Calculate crypto amount
-    let cryptoAmount = '...';
-    try {
-      const amt = await cryptoService.convertUsdToCrypto(order.total, order.paymentMethod);
-      cryptoAmount = amt.toFixed(8);
-    } catch (e) {
-      cryptoAmount = 'Error calculating amount';
-    }
-
-    const walletAddress = order.paymentMethod === 'BTC' ? config.wallets.btc : config.wallets.ltc;
-    
-    // Generate QR code using quickchart API
-    // We format the URI according to BIP21 for BTC and similar for LTC
-    const coinUriPrefix = order.paymentMethod === 'BTC' ? 'bitcoin:' : 'litecoin:';
-    const paymentUri = `${coinUriPrefix}${walletAddress}?amount=${cryptoAmount}`;
-    const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(paymentUri)}&size=400&margin=2`;
-
-    const message = `Order ${order.orderNumber}\n\n*Next step:*\n\nSend\n\`${cryptoAmount} ${order.paymentMethod}\`\nto\n\`${walletAddress}\`\n\nYou have 30 minutes to send the full payment (it can confirm on the blockchain later). Several payments within 30 minutes are OK. If your payment is detected after 30 minutes, it will be automatically refunded.\n\nOrder details: /ord\\_${order.orderNumber}`;
-
-    // Send the QR code with the message
-    await ctx.replyWithPhoto(
-      { url: qrUrl },
-      {
-        caption: message,
-        parse_mode: 'Markdown',
-      }
-    );
-
-    // Prompt for proof of payment
-    await ctx.reply(
-      '📎 After payment, send a *screenshot* or *transaction hash* directly in this chat — it will be forwarded to the admin.',
-      {
-        parse_mode: 'Markdown',
-        ...Markup.inlineKeyboard([
-          [Markup.button.callback('🏠 Home', 'catalog:page:0:all')],
-        ]),
-      }
-    );
-
-    await notifyService.notifyNewOrder(bot, order, ctx);
-
-    ctx.session = ctx.session || {};
-    ctx.session.awaitingProofFor = order.id;
-
-    return ctx.scene.leave();
-  });
-
-  // Proof handlers
   bot.on(['photo', 'document'], async (ctx, next) => {
     if (!ctx.session?.awaitingProofFor) return next();
     const orderId = ctx.session.awaitingProofFor;
@@ -112,11 +140,6 @@ function register(bot) {
     await ctx.reply('✅ Proof received, thank you. The admin will validate your order shortly.');
     ctx.session.awaitingProofFor = null;
   });
-  
-  // Dummy order details command
-  bot.hears(/^\/ord_(.+)$/, async (ctx) => {
-    await ctx.reply(`Details for order ${ctx.match[1]} coming soon.`);
-  });
 }
 
-module.exports = { register };
+module.exports = { register, completeCheckout };

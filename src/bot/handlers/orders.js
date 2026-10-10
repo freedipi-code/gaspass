@@ -1,6 +1,14 @@
 const { Markup } = require('telegraf');
 const prisma = require('../../db/client');
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function statusLabel(status) {
+  return status === 'pending' ? 'open' : status;
+}
+
 function statusEmoji(status) {
   return {
     pending: '⏳',
@@ -19,10 +27,10 @@ async function showOrders(ctx) {
 
   if (!orders.length) {
     const opts = {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       ...Markup.inlineKeyboard([[Markup.button.callback('🏠 Home', 'home')]]),
     };
-    const text = '📜 *Your Orders*\n\n_No orders yet._';
+    const text = '📜 <b>Your Orders</b>\n\n<i>No orders yet.</i>';
     if (ctx.callbackQuery) {
       await ctx.answerCbQuery().catch(() => {});
       try { await ctx.editMessageText(text, opts); return; } catch (_) {}
@@ -38,8 +46,8 @@ async function showOrders(ctx) {
   ]);
   rows.push([Markup.button.callback('🏠 Home', 'home')]);
 
-  const text = '📜 *Your Orders* (10 most recent)\n\nTap an order for details.';
-  const opts = { parse_mode: 'Markdown', ...Markup.inlineKeyboard(rows) };
+  const text = '📜 <b>Your Orders</b> (10 most recent)\n\nTap an order for details.';
+  const opts = { parse_mode: 'HTML', ...Markup.inlineKeyboard(rows) };
   if (ctx.callbackQuery) {
     await ctx.answerCbQuery().catch(() => {});
     try { await ctx.editMessageText(text, opts); return; } catch (_) {}
@@ -58,21 +66,21 @@ async function showOrderDetail(ctx) {
     return;
   }
   const lines = order.items.map(
-    (it) => `• ${it.quantity}× ${it.product.name} — £${(it.price * it.quantity).toFixed(2)}`,
+    (it) => `• ${it.quantity}× ${escapeHtml(it.product.name)} — £${(it.price * it.quantity).toFixed(2)}`,
   );
   const text =
-    `📦 *Order ${order.orderNumber}*\n\n` +
-    `Status: ${statusEmoji(order.status)} ${order.status}\n` +
-    `Payment: ${order.paymentMethod}\n` +
-    `Total: *£${order.total.toFixed(2)}*\n\n` +
-    `*Items:*\n${lines.join('\n')}\n\n` +
-    `📍 ${order.address}\n` +
-    (order.notes ? `📝 ${order.notes}\n` : '') +
+    `📦 <b>Order ${escapeHtml(order.orderNumber)}</b>\n\n` +
+    `Status: ${statusEmoji(order.status)} ${escapeHtml(statusLabel(order.status))}\n` +
+    `Payment: ${escapeHtml(order.paymentMethod)}\n` +
+    `Total: <b>£${order.total.toFixed(2)}</b>\n\n` +
+    `<b>Items:</b>\n${lines.join('\n')}\n\n` +
+    `📍 ${escapeHtml(order.shippingStreet)}\n` +
+    (order.notes ? `📝 ${escapeHtml(order.notes)}\n` : '') +
     `🕒 ${order.createdAt.toLocaleString('en-GB')}`;
 
   await ctx.answerCbQuery().catch(() => {});
   const opts = {
-    parse_mode: 'Markdown',
+    parse_mode: 'HTML',
     ...Markup.inlineKeyboard([
       [Markup.button.callback('⬅️ Back', 'orders'), Markup.button.callback('🏠 Home', 'home')],
     ]),

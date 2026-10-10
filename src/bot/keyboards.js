@@ -91,22 +91,23 @@ function catalogKeyboard(page, totalPages, categories, categoryFilter) {
   return Markup.inlineKeyboard(rows);
 }
 
-function productListKeyboard(products, category, cartSummary = { count: 0, total: 0 }) {
+function productListKeyboard(products, category, cartSummary = { count: 0, total: 0 }, page = 0, totalPages = 1) {
   const rows = products.map((product) => [
     Markup.button.callback(
-      `📦 ${product.name.toUpperCase()}`,
+      product.name.length > 32 ? `${product.name.slice(0, 29)}...` : product.name,
       `prod:${product.id}`,
     ),
   ]);
 
-  rows.push([Markup.button.callback(cartLabel(cartSummary), 'cart')]);
+  if (totalPages > 1) {
+    const navigation = [];
+    if (page > 0) navigation.push(Markup.button.callback('◀️ Prev', `catalog:cat:${category.id}:${page - 1}`));
+    if (page < totalPages - 1) navigation.push(Markup.button.callback('Next ▶️', `catalog:cat:${category.id}:${page + 1}`));
+    rows.push(navigation);
+  }
 
   const upAction = category?.parentId ? `cat:view:${category.parentId}` : 'categories:root';
-  rows.push([
-    Markup.button.callback('⬅️ Up/Back', upAction),
-    Markup.button.callback('🛍️ Main Categories', 'categories:root'),
-  ]);
-  rows.push([Markup.button.callback('🏠 Main Menu', 'home')]);
+  rows.push([Markup.button.callback('⬅️ Back', upAction)]);
 
   return Markup.inlineKeyboard(rows);
 }
@@ -128,11 +129,12 @@ function productDetailKeyboard(product, variants, productIndex, totalProducts, c
   if (variants && variants.length > 0) {
     const variantButtons = variants.map((v) =>
       Markup.button.callback(
-        `${v.label} — ${formatPrice(v.price)}`,
+        `${v.quantity} ${v.label} – ${formatPrice(v.price)} x unit`,
         `addVar:${product.id}:${v.id}`
       )
     );
-    rows.push(...chunk(variantButtons, 2));
+    rows.push(...variantButtons.map((button) => [button]));
+    rows.push([Markup.button.callback('✏️ Custom Quantity', `customQty:${product.id}`)]);
   } else {
     // Fallback: single "Add to cart" button
     rows.push([
@@ -142,9 +144,6 @@ function productDetailKeyboard(product, variants, productIndex, totalProducts, c
       ),
     ]);
   }
-
-  rows.push([Markup.button.callback('🛒 View Cart', 'cart')]);
-  rows.push([Markup.button.callback('🏠 Main Menu', 'home')]);
 
   return Markup.inlineKeyboard(rows);
 }
@@ -157,35 +156,26 @@ const homeMenu = (cartSummary = { count: 0, total: 0 }) => {
     : `🌟 Reviews (${shop.reviewCount})`;
 
   const rows = [
-    [styledCallback('🛍️ Browse Products', 'categories:root', 'primary')],
-    [styledCallback('🎫 Support Tickets', 'support', 'success')],
+    [styledCallback('🤔 How does it work?', 'info', 'primary')],
+    [styledCallback('🎁 Products', 'categories:root', 'success')],
     [
-      shop.channelUrl
-        ? Markup.button.url('📣 News Feed', shop.channelUrl)
-        : Markup.button.callback('📣 News Feed', 'info'),
+      Markup.button.callback('📖 User Guide', 'help:menu'),
+      Markup.button.callback('🆘 Support', 'support'),
+    ],
+    [
+      Markup.button.callback('🏷️ Coupons', 'coupons'),
+      Markup.button.callback('❤️ Friendly Services', 'friendly:services'),
     ],
     [
       Markup.button.callback(reviewsLabel, 'reviews'),
-      Markup.button.callback('📋 My Orders', 'orders'),
+      Markup.button.callback('📣 Ref & Earn', 'referrals'),
     ],
     [
-      Markup.button.callback('🔐 PGP Key', 'pgp:key'),
-      Markup.button.callback('📦 Track Order', 'orders'),
+      Markup.button.callback(`🛒 Cart (${cartSummary?.count || 0})`, 'cart'),
+      Markup.button.callback('📦 Orders', 'orders'),
     ],
-    [
-      Markup.button.callback('🤔 Help', 'help:menu'),
-      Markup.button.callback('🛡️ Security Mark', 'security:mark'),
-    ],
-    [Markup.button.callback('🎁 My Referrals', 'referrals')],
-    [Markup.button.callback(cartLabel(cartSummary), 'cart')],
+    [Markup.button.callback('⚙️ Settings', 'settings')],
   ];
-
-  rows.push([
-    externalLinkButton(`👥 ${shop.groupLabel}`, shop.groupUrl, 'group'),
-  ]);
-  rows.push([
-    externalLinkButton(`🔄 ${shop.backupBotLabel}`, shop.backupBotUrl, 'backup:bot'),
-  ]);
 
   return Markup.inlineKeyboard(rows);
 };

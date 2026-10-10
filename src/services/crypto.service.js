@@ -20,9 +20,9 @@ function fetchJson(url) {
   });
 }
 
-async function getCryptoPrice(cryptoCode) {
+async function getCryptoPrice(cryptoCode, fiatCurrency = 'GBP') {
   try {
-    const url = `https://api.coinbase.com/v2/prices/${cryptoCode}-USD/spot`;
+    const url = `https://api.coinbase.com/v2/prices/${cryptoCode}-${fiatCurrency}/spot`;
     const res = await fetchJson(url);
     if (res && res.data && res.data.amount) {
       return parseFloat(res.data.amount);
@@ -36,15 +36,18 @@ async function getCryptoPrice(cryptoCode) {
   }
 }
 
-async function convertUsdToCrypto(amountInUsd, cryptoCode) {
-  const rate = await getCryptoPrice(cryptoCode);
+async function convertFiatToCrypto(amount, cryptoCode, fiatCurrency = 'GBP') {
+  const rate = await getCryptoPrice(cryptoCode, fiatCurrency);
   if (!rate || rate <= 0) {
     throw new Error(`Invalid rate for ${cryptoCode}`);
   }
-  return amountInUsd / rate;
+  return amount / rate;
 }
+
+const convertUsdToCrypto = (amount, cryptoCode) => convertFiatToCrypto(amount, cryptoCode, 'USD');
 
 module.exports = {
   getCryptoPrice,
   convertUsdToCrypto,
+  convertFiatToCrypto,
 };

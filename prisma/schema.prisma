@@ -18,6 +18,7 @@ model User {
   fullName       String?
   securityEmoji  String?
   securityPhrase String?
+  countryCode    String?
   createdAt      DateTime @default(now())
 
   cart   Cart?
@@ -54,11 +55,13 @@ model Product {
 }
 
 model ProductVariant {
-  id        Int    @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   productId Int
   label     String // ex: "1kg", "5kg", "10kg"
-  price     Float // prix pour cette variante
-  sortOrder Int    @default(0)
+  quantity  Int     @default(1) // quantité ajoutée au panier par ce palier
+  price     Float // prix unitaire pour ce palier
+  sortOrder Int     @default(0)
+  active    Boolean @default(true)
 
   product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   cartItems  CartItem[]
@@ -93,6 +96,12 @@ model Order {
   orderNumber     String   @unique
   userId          Int
   total           Float
+  subtotal        Float    @default(0)
+  shippingFee     Float    @default(0)
+  fiatCurrency    String   @default("GBP")
+  email           String?
+  shippingMethod  String?
+  cryptoAmount    String?
   paymentMethod   String // "BTC" | "LTC"
   status          String   @default("pending") // pending | paid | cancelled | shipped
   shippingName    String

@@ -91,7 +91,7 @@ router.get('/products', async (req, res) => {
     const products = await prisma.product.findMany({
       include: {
         categories: { orderBy: { id: 'asc' } },
-        variants: { orderBy: { sortOrder: 'asc' } },
+        variants: { where: { active: true }, orderBy: { sortOrder: 'asc' } },
       },
       orderBy: { id: 'desc' },
     });
@@ -163,8 +163,9 @@ router.put('/products/:id', async (req, res) => {
 router.delete('/products/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
-    await prisma.product.delete({
+    await prisma.product.update({
       where: { id },
+      data: { active: false },
     });
     res.json({ success: true });
   } catch (error) {
@@ -179,7 +180,7 @@ router.get('/products/:id/variants', async (req, res) => {
   try {
     const productId = Number(req.params.id);
     const variants = await prisma.productVariant.findMany({
-      where: { productId },
+      where: { productId, active: true },
       orderBy: { sortOrder: 'asc' },
     });
     res.json(variants);
@@ -192,7 +193,7 @@ router.get('/products/:id/variants', async (req, res) => {
 router.post('/products/:id/variants', async (req, res) => {
   try {
     const productId = Number(req.params.id);
-    const { label, price, sortOrder } = req.body;
+    const { label, quantity, price, sortOrder } = req.body;
     if (!label) return res.status(400).json({ error: 'Label is required' });
     if (price === undefined) return res.status(400).json({ error: 'Price is required' });
 
@@ -200,6 +201,7 @@ router.post('/products/:id/variants', async (req, res) => {
       data: {
         productId,
         label,
+        quantity: Math.max(1, parseInt(quantity, 10) || 1),
         price: parseFloat(price),
         sortOrder: sortOrder !== undefined ? parseInt(sortOrder, 10) : 0,
       },
@@ -214,11 +216,12 @@ router.post('/products/:id/variants', async (req, res) => {
 router.put('/variants/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { label, price, sortOrder } = req.body;
+    const { label, quantity, price, sortOrder } = req.body;
     const variant = await prisma.productVariant.update({
       where: { id },
       data: {
         label: label !== undefined ? label : undefined,
+        quantity: quantity !== undefined ? Math.max(1, parseInt(quantity, 10) || 1) : undefined,
         price: price !== undefined ? parseFloat(price) : undefined,
         sortOrder: sortOrder !== undefined ? parseInt(sortOrder, 10) : undefined,
       },
@@ -233,38 +236,42 @@ router.put('/variants/:id', async (req, res) => {
 router.delete('/variants/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
-    await prisma.productVariant.delete({ where: { id } });
+    await prisma.productVariant.update({ where: { id }, data: { active: false } });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Bulk save variants for a product (delete all existing, create new ones)
+// Bulk save active tiers while preserving variants referenced by old orders.
 router.post('/products/:id/variants/bulk', async (req, res) => {
   try {
     const productId = Number(req.params.id);
-    const { variants } = req.body; // array of { label, price, sortOrder }
+    const { variants } = req.body; // array of { quantity, label, price, sortOrder }
     if (!Array.isArray(variants)) return res.status(400).json({ error: 'variants must be an array' });
 
     await prisma.$transaction(async (tx) => {
-      // Delete existing variants
-      await tx.productVariant.deleteMany({ where: { productId } });
-      // Create new ones
-      if (variants.length > 0) {
-        await tx.productVariant.createMany({
-          data: variants.map((v, i) => ({
-            productId,
-            label: v.label,
-            price: parseFloat(v.price),
-            sortOrder: v.sortOrder !== undefined ? parseInt(v.sortOrder, 10) : i,
-          })),
-        });
+      await tx.productVariant.updateMany({ where: { productId }, data: { active: false } });
+      for (let index = 0; index < variants.length; index += 1) {
+        const variant = variants[index];
+        const data = {
+          label: variant.label,
+          quantity: Math.max(1, parseInt(variant.quantity, 10) || 1),
+          price: parseFloat(variant.price),
+          sortOrder: variant.sortOrder !== undefined ? parseInt(variant.sortOrder, 10) : index,
+          active: true,
+        };
+        const id = Number(variant.id);
+        if (Number.isInteger(id) && id > 0) {
+          await tx.productVariant.updateMany({ where: { id, productId }, data });
+        } else {
+          await tx.productVariant.create({ data: { productId, ...data } });
+        }
       }
     });
 
     const saved = await prisma.productVariant.findMany({
-      where: { productId },
+      where: { productId, active: true },
       orderBy: { sortOrder: 'asc' },
     });
     res.json(saved);

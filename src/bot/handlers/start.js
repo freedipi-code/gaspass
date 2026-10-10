@@ -1,8 +1,9 @@
 const shop = require('../../shop.config');
 const cartService = require('../../services/cart.service');
 const { homeMenu } = require('../keyboards');
-const { beginSetup } = require('./security-mark');
-const { getSecurityMark } = require('../../services/security-mark.service');
+const prisma = require('../../db/client');
+const { Markup } = require('telegraf');
+const userService = require('../../services/user.service');
 
 function escapeHtml(value) {
   return String(value)
@@ -57,13 +58,10 @@ async function getHomeStats(userId) {
 }
 
 async function showHome(ctx) {
-  const securityMark = getSecurityMark(ctx.state.user);
-  if (!securityMark) {
-    return beginSetup(ctx, { edit: Boolean(ctx.callbackQuery) });
-  }
-
+  if (!ctx.state.user.countryCode) return showWelcome(ctx);
   const { cartSummary } = await getHomeStats(ctx.state.user.id);
-  const menuText = homeText();
+  const country = shop.countries.find((item) => item.code === ctx.state.user.countryCode);
+  const menuText = `${shop.mainMenuTitle}\n${country ? `\n${country.flag} ${country.name}` : ''}`;
   const menuOpts = {
     parse_mode: 'HTML',
     disable_web_page_preview: true,
@@ -89,17 +87,60 @@ async function showHome(ctx) {
   await ctx.reply(menuText, menuOpts);
 }
 
+function countryKeyboard() {
+  const buttons = shop.countries.map((country) =>
+    Markup.button.callback(`${country.flag} Enter the store`, `country:set:${country.code}`));
+  const rows = [];
+  for (let index = 0; index < buttons.length; index += 2) {
+    rows.push(buttons.slice(index, index + 2));
+  }
+  return Markup.inlineKeyboard(rows);
+}
+
+async function showWelcome(ctx) {
+  const text = homeText();
+  const opts = {
+    parse_mode: 'HTML',
+    disable_web_page_preview: true,
+    ...countryKeyboard(),
+  };
+
+  if (ctx.callbackQuery) {
+    await ctx.answerCbQuery().catch(() => {});
+    try {
+      await ctx.editMessageText(text, opts);
+      return;
+    } catch (_) {}
+  }
+  await ctx.reply(text, opts);
+}
+
 function register(bot) {
-  bot.start((ctx) => showHome(ctx));
-  bot.command('menu', (ctx) => showHome(ctx));
+  bot.start((ctx) => showWelcome(ctx));
+  bot.command('menu', (ctx) => ctx.state.user.countryCode ? showHome(ctx) : showWelcome(ctx));
+
+  bot.action(/^country:set:([A-Z]{2})$/, async (ctx) => {
+    const countryCode = ctx.match[1];
+    if (!shop.countries.some((country) => country.code === countryCode)) {
+      return ctx.answerCbQuery('Country unavailable', { show_alert: true });
+    }
+    ctx.state.user = await prisma.user.update({
+      where: { id: ctx.state.user.id },
+      data: { countryCode },
+    });
+    userService.rememberUser(ctx.state.user);
+    await ctx.answerCbQuery().catch(() => {});
+    return showHome(ctx);
+  });
   
   bot.command('shop', (ctx) => showHome(ctx));
   bot.action('shop', (ctx) => showHome(ctx));
   
   bot.action('home', (ctx) => showHome(ctx));
+  bot.action('settings', (ctx) => showWelcome(ctx));
   bot.action('help:menu', (ctx) => showHelp(ctx));
   
   bot.command('help', (ctx) => showHelp(ctx));
 }
 
-module.exports = { register, showHome };
+module.exports = { register, showHome, showWelcome };

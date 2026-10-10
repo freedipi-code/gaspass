@@ -3,6 +3,10 @@ const cartService = require('../../services/cart.service');
 const { resolveImage } = require('../../utils/image');
 const { productDetailKeyboard } = require('../keyboards');
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 // ── Product Detail View ──
 
 function truncate(text, maxLength) {
@@ -11,23 +15,20 @@ function truncate(text, maxLength) {
 }
 
 function buildProductCaption(product) {
-  const stockStatus = product.stock > 0 ? '🟢' : '🔴';
   const description = truncate(product.description || 'No description available.', 650);
 
   const lines = [
-    `📦 ${product.name.toUpperCase()}`,
+    `<b>${escapeHtml(product.name)}</b>`,
     '',
-    `📦 Stock: ${stockStatus}`,
+    escapeHtml(description),
     '',
-    '📝 Description:',
-    description,
-    '',
-    product.inCart ? '🛒 This product is already in your cart.' : '🛒 This product is not in your cart.',
+    `<b>Price:</b> ${escapeHtml(require('../keyboards').formatPrice(product.price))}`,
+    `<b>Stock:</b> ${product.stock}`,
   ];
 
   if (product.variants?.length) {
     lines.push('');
-    lines.push('Select a variant / price below:');
+    lines.push('Select a quantity tier below. Prices shown are per unit:');
   }
 
   return lines.join('\n');
@@ -65,7 +66,7 @@ async function showProductDetail(ctx) {
 
   const product = await prisma.product.findUnique({
     where: { id: pId },
-    include: { variants: { orderBy: { sortOrder: 'asc' } } },
+    include: { variants: { where: { active: true }, orderBy: { sortOrder: 'asc' } } },
   });
 
   if (!product || !product.active) {
@@ -87,6 +88,7 @@ async function showProductDetail(ctx) {
   const keyboard = productDetailKeyboard(product, product.variants, pIndex, totalProducts, catFilter);
 
   const opts = {
+    parse_mode: 'HTML',
     ...keyboard,
   };
 
@@ -96,8 +98,8 @@ async function showProductDetail(ctx) {
     if (photoSrc) {
       if (ctx.callbackQuery?.message?.photo) {
         await ctx.editMessageMedia(
-          { type: 'photo', media: photoSrc, caption },
-          opts
+          { type: 'photo', media: photoSrc, caption, parse_mode: 'HTML' },
+          keyboard
         );
       } else {
         if (ctx.callbackQuery?.message) await ctx.deleteMessage().catch(() => {});
@@ -124,12 +126,12 @@ async function addVariantToCart(ctx) {
   const variantId = Number(ctx.match[2]);
   
   try {
-    await cartService.addVariantItem(ctx.state.user.id, productId, variantId, 1);
-    await ctx.answerCbQuery(`✅ Added to cart`);
-    
-    // Refresh product view to update the "This product is in /cart" text
-    ctx.match[1] = String(productId); // Setup for showProductDetail
-    await showProductDetail(ctx);
+    const variant = await prisma.productVariant.findFirst({ where: { id: variantId, productId, active: true } });
+    if (!variant) throw new Error('Pricing tier unavailable');
+    await cartService.addVariantItem(ctx.state.user.id, productId, variantId, variant.quantity);
+    await ctx.answerCbQuery(`✅ ${variant.quantity} added`);
+    const { showCart } = require('./cart');
+    await showCart(ctx);
   } catch (e) {
     await ctx.answerCbQuery(e.message || 'Could not add', { show_alert: true });
   }
@@ -149,12 +151,56 @@ async function addToCart(ctx) {
   }
 }
 
+async function requestCustomQuantity(ctx) {
+  const productId = Number(ctx.match[1]);
+  const product = await prisma.product.findFirst({ where: { id: productId, active: true } });
+  if (!product) return ctx.answerCbQuery('Product unavailable', { show_alert: true });
+  ctx.session = ctx.session || {};
+  ctx.session.customQuantityProductId = productId;
+  await ctx.answerCbQuery().catch(() => {});
+  await ctx.reply(`✏️ How many units of “${product.name}” would you like to add?`);
+}
+
+async function handleCustomQuantity(ctx, next) {
+  const productId = ctx.session?.customQuantityProductId;
+  if (!productId) return next();
+  if (ctx.message.text.startsWith('/')) return next();
+
+  const quantity = Number(ctx.message.text.trim());
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    return ctx.reply('Please enter a whole number greater than zero.');
+  }
+
+  const product = await prisma.product.findFirst({
+    where: { id: productId, active: true },
+    include: { variants: { where: { active: true }, orderBy: { quantity: 'desc' } } },
+  });
+  if (!product) {
+    delete ctx.session.customQuantityProductId;
+    return ctx.reply('Product unavailable.');
+  }
+
+  const tier = product.variants.find((variant) => quantity >= variant.quantity);
+  try {
+    if (tier) await cartService.addVariantItem(ctx.state.user.id, product.id, tier.id, quantity);
+    else await cartService.addItem(ctx.state.user.id, product.id, quantity);
+    delete ctx.session.customQuantityProductId;
+    await ctx.reply(`✅ ${quantity} unit${quantity === 1 ? '' : 's'} added at ${require('../keyboards').formatPrice(tier?.price ?? product.price)} per unit.`);
+    const { showCart } = require('./cart');
+    return showCart(ctx);
+  } catch (error) {
+    return ctx.reply(error.message || 'Could not add this quantity.');
+  }
+}
+
 function register(bot) {
   bot.action(/^prod:(\d+)$/, showProductDetail);
   bot.action(/^prodNav:(\d+):(.+)$/, showProductDetail);
   
   bot.action(/^addVar:(\d+):(\d+)$/, addVariantToCart);
   bot.action(/^add:(\d+)$/, addToCart);
+  bot.action(/^customQty:(\d+)$/, requestCustomQuantity);
+  bot.on('text', handleCustomQuantity);
   
   bot.hears('/vendor', (ctx) => ctx.reply('Vendor info coming soon.'));
 }

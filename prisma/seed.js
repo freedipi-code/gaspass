@@ -293,8 +293,14 @@ async function main() {
 
   for (const p of products) {
     const { variants, categoryId, ...productData } = p;
-    // Use first variant price as base price
-    const basePrice = variants[0]?.price || 0;
+    // Legacy seed prices represent the full pack. Convert them to the new
+    // quantity-tier model where every stored price is a unit price.
+    const normalizedVariants = variants.map((variant) => {
+      const quantity = Math.max(1, parseInt(variant.label, 10) || 1);
+      const label = variant.label.replace(/^\d+\s*/, '') || 'units';
+      return { ...variant, quantity, label, price: variant.price / quantity };
+    });
+    const basePrice = normalizedVariants[0]?.price || 0;
     const product = await prisma.product.create({
       data: {
         ...productData,
@@ -303,11 +309,12 @@ async function main() {
       },
     });
     // Create variants
-    for (const v of variants) {
+    for (const v of normalizedVariants) {
       await prisma.productVariant.create({
         data: {
           productId: product.id,
           label: v.label,
+          quantity: v.quantity,
           price: v.price,
           sortOrder: v.sortOrder,
         },

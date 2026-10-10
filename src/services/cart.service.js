@@ -14,86 +14,145 @@ async function getCartWithItems(userId) {
   });
 }
 
+async function pricingForQuantity(product, quantity) {
+  const variants = product.variants || await prisma.productVariant.findMany({
+    where: { productId: product.id, active: true },
+    orderBy: { quantity: 'desc' },
+  });
+  const tier = variants.find((variant) => quantity >= variant.quantity);
+  return {
+    variantId: tier?.id || null,
+    unitPrice: tier?.price ?? product.price,
+  };
+}
+
 // Add a product with a specific variant
 async function addVariantItem(userId, productId, variantId, qty = 1) {
-  const product = await prisma.product.findUnique({ where: { id: productId } });
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    include: { variants: { where: { active: true }, orderBy: { quantity: 'desc' } } },
+  });
   if (!product || !product.active) throw new Error('Product unavailable');
   
-  const variant = await prisma.productVariant.findUnique({ where: { id: variantId } });
-  if (!variant) throw new Error('Variant unavailable');
+  const variant = await prisma.productVariant.findFirst({ where: { id: variantId, productId, active: true } });
+  if (!variant) throw new Error('Pricing tier unavailable');
 
   const cart = await getOrCreateCart(userId);
-  const existing = await prisma.cartItem.findUnique({
-    where: { cartId_productId_variantId: { cartId: cart.id, productId, variantId } },
-  });
+  const existing = await prisma.cartItem.findFirst({ where: { cartId: cart.id, productId } });
   
   const newQty = (existing?.quantity || 0) + qty;
+  if (newQty > product.stock) throw new Error(`Only ${product.stock} units available`);
+  const pricing = await pricingForQuantity(product, newQty);
 
-  return prisma.cartItem.upsert({
-    where: { cartId_productId_variantId: { cartId: cart.id, productId, variantId } },
-    create: { 
+  if (!existing) {
+    return prisma.cartItem.create({
+      data: {
       cartId: cart.id, 
       productId, 
-      variantId, 
+      variantId: pricing.variantId,
       quantity: qty,
-      unitPrice: variant.price
-    },
-    update: { quantity: newQty },
+      unitPrice: pricing.unitPrice,
+      },
+    });
+  }
+  return prisma.cartItem.update({
+    where: { id: existing.id },
+    data: { quantity: newQty, ...pricing },
   });
 }
 
 // Legacy add item (for products without variants)
 async function addItem(userId, productId, qty = 1) {
-  const product = await prisma.product.findUnique({ where: { id: productId } });
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    include: { variants: { where: { active: true }, orderBy: { quantity: 'desc' } } },
+  });
   if (!product || !product.active) throw new Error('Product unavailable');
 
   const cart = await getOrCreateCart(userId);
   
   // Use a dummy variantId of 0 or find existing without variant
-  const existing = await prisma.cartItem.findFirst({
-    where: { cartId: cart.id, productId, variantId: null },
-  });
+  const existing = await prisma.cartItem.findFirst({ where: { cartId: cart.id, productId } });
   
   const newQty = (existing?.quantity || 0) + qty;
+  if (newQty > product.stock) throw new Error(`Only ${product.stock} units available`);
+  const pricing = await pricingForQuantity(product, newQty);
 
   if (existing) {
     return prisma.cartItem.update({
       where: { id: existing.id },
-      data: { quantity: newQty },
+      data: { quantity: newQty, ...pricing },
     });
   } else {
     return prisma.cartItem.create({
       data: { 
         cartId: cart.id, 
         productId, 
+        variantId: pricing.variantId,
         quantity: qty,
-        unitPrice: product.price
+        unitPrice: pricing.unitPrice,
       },
     });
   }
 }
 
 async function decrementItem(userId, cartItemId) {
-  const item = await prisma.cartItem.findUnique({ where: { id: cartItemId } });
+  const cart = await getOrCreateCart(userId);
+  const item = await prisma.cartItem.findFirst({
+    where: { id: cartItemId, cartId: cart.id },
+    include: { product: { include: { variants: { where: { active: true }, orderBy: { quantity: 'desc' } } } } },
+  });
   if (!item) return null;
   
   if (item.quantity <= 1) {
     await prisma.cartItem.delete({ where: { id: item.id } });
     return null;
   }
+  const quantity = item.quantity - 1;
+  const pricing = await pricingForQuantity(item.product, quantity);
   return prisma.cartItem.update({
     where: { id: item.id },
-    data: { quantity: item.quantity - 1 },
+    data: { quantity, ...pricing },
   });
 }
 
 async function incrementItem(userId, cartItemId) {
-  const item = await prisma.cartItem.findUnique({ where: { id: cartItemId } });
+  const cart = await getOrCreateCart(userId);
+  const item = await prisma.cartItem.findFirst({
+    where: { id: cartItemId, cartId: cart.id },
+    include: { product: { include: { variants: { where: { active: true }, orderBy: { quantity: 'desc' } } } } },
+  });
   if (!item) return null;
+  if (item.quantity >= item.product.stock) throw new Error(`Only ${item.product.stock} units available`);
   
+  const quantity = item.quantity + 1;
+  const pricing = await pricingForQuantity(item.product, quantity);
   return prisma.cartItem.update({
     where: { id: item.id },
-    data: { quantity: item.quantity + 1 },
+    data: { quantity, ...pricing },
+  });
+}
+
+async function removeQuantity(userId, cartItemId, quantity) {
+  const cart = await getOrCreateCart(userId);
+  const item = await prisma.cartItem.findFirst({ where: { id: cartItemId, cartId: cart.id } });
+  if (!item) throw new Error('Cart item not found');
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > item.quantity) {
+    throw new Error(`Enter a quantity from 1 to ${item.quantity}`);
+  }
+  if (quantity === item.quantity) {
+    await prisma.cartItem.delete({ where: { id: item.id } });
+    return null;
+  }
+  const newQuantity = item.quantity - quantity;
+  const product = await prisma.product.findUnique({
+    where: { id: item.productId },
+    include: { variants: { where: { active: true }, orderBy: { quantity: 'desc' } } },
+  });
+  const pricing = await pricingForQuantity(product, newQuantity);
+  return prisma.cartItem.update({
+    where: { id: item.id },
+    data: { quantity: newQuantity, ...pricing },
   });
 }
 
@@ -114,6 +173,7 @@ module.exports = {
   addItem,
   decrementItem,
   incrementItem,
+  removeQuantity,
   clear,
   computeTotal,
 };
