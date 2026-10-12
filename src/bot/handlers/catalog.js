@@ -329,12 +329,19 @@ async function showHome(ctx) {
 
   if (photoSrc) {
     try {
-      const safeCaption = caption.length > 1024 ? caption.substring(0, 1020) + '...' : caption;
-      await ctx.replyWithPhoto(photoSrc, {
-        caption: safeCaption,
-        parse_mode: 'HTML',
-        ...homeKeyboard,
-      });
+      if (caption.length <= 1024) {
+        await ctx.replyWithPhoto(photoSrc, {
+          caption,
+          parse_mode: 'HTML',
+          ...homeKeyboard,
+        });
+      } else {
+        // Never cut an HTML caption: truncation can leave an entity open and
+        // Telegram then rejects the entire /start response. Send the image and
+        // the complete menu as two messages when the caption is too long.
+        await ctx.replyWithPhoto(photoSrc);
+        await ctx.reply(caption, { parse_mode: 'HTML', ...homeKeyboard });
+      }
       return;
     } catch (e) {
       console.error('Failed to send welcome photo with caption:', e.message);
