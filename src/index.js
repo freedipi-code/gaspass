@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const config = require('./config');
+const prisma = require('./db/client');
 const bot = require('./bot/bot');
 const adminRouter = require('./bot/admin.router');
 
@@ -55,6 +56,10 @@ async function startWebhook() {
 
 (async () => {
   try {
+    // Complete the remote database handshake before accepting /start updates.
+    await prisma.$connect();
+    console.log('🗄️ Connexion PostgreSQL établie');
+
     if (config.mode === 'webhook') {
       await startWebhook();
     } else {
@@ -67,5 +72,10 @@ async function startWebhook() {
 })();
 
 // Arrêt propre
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+async function shutdown(signal) {
+  bot.stop(signal);
+  await prisma.$disconnect().catch(() => {});
+}
+
+process.once('SIGINT', () => shutdown('SIGINT'));
+process.once('SIGTERM', () => shutdown('SIGTERM'));

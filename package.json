@@ -6,7 +6,9 @@
   "type": "commonjs",
   "scripts": {
     "test": "node --test",
+    "prestart": "prisma generate",
     "start": "node src/index.js",
+    "predev": "prisma generate",
     "dev": "BOT_MODE=polling node src/index.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
