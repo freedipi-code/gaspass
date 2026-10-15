@@ -91,9 +91,9 @@ module.exports = {
     "",
     "<b>The 10/10 Boys ®</b>",
     "",
-    "<b>Telegram Support: <a href=\"https://t.me/The1010Boys_Support\">@The1010Boys_Support</a></b> 📢",
+    "<b>Telegram Support: <a href=\"https://t.me/The1010Boys_Support\">@The1010boys2026botUk</a></b> 📢",
     "",
-    "Instagram: <b><a href=\"https://www.instagram.com/the1010boys.global\">@the1010boys.global</a></b> 📸",
+    "Instagram: <b><a href=\"https://www.instagram.com/the1010boys.global\">@the1010boys2026botuk</a></b> 📸",
   ].join("\n"),
 
   mainMenuTitle: "🔷 Main Menu\nChoose an option below:",
