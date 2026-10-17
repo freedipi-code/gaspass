@@ -12,15 +12,31 @@ datasource db {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  telegramId String   @unique
-  username   String?
-  fullName   String?
-  createdAt  DateTime @default(now())
+  id           Int       @id @default(autoincrement())
+  telegramId   String    @unique
+  username     String?
+  fullName     String?
+  email        String?   @unique
+  passwordHash String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
 
-  cart    Cart?
-  orders  Order[]
-  reviews Review[]
+  cart       Cart?
+  orders     Order[]
+  reviews    Review[]
+  activities CustomerActivity[]
+}
+
+model CustomerActivity {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  type      String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model Category {

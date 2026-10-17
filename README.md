@@ -131,7 +131,15 @@ Le parcours web comprend :
 - la saisie des informations de livraison ;
 - le paiement BTC/XMR avec montant converti au cours actuel ;
 - l’enregistrement du hash de transaction et la notification Telegram de l’administrateur.
-- un espace client lié au navigateur avec tableau de bord, historique, statuts, preuves de paiement et dernières informations de livraison.
+- un espace client sécurisé avec inscription/connexion, accès multi-appareils, historique des commandes, statuts, preuves de paiement et chronologie d’activité ;
+- la récupération automatique des anciennes commandes du navigateur lors de la création du compte.
+
+Après déploiement de cette version, applique la migration des comptes clients avant de
+redémarrer l’application :
+
+```bash
+npm run db:deploy
+```
 
 ## 7. Étapes suivantes (post-MVP)
 

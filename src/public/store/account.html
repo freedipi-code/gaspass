@@ -22,17 +22,51 @@
   <div class="store-shell" id="siteShell" aria-hidden="true">
     <header class="header"><div class="header-inner">
       <a class="header-logo" href="/" aria-label="Canna Express home"><span>CE</span></a>
-      <div class="account-header-label"><b>Customer Space</b><small>Private browser profile</small></div>
+      <div class="account-header-label"><b>Customer Space</b><small>Your secure personal account</small></div>
       <nav class="header-tabs account-tabs" aria-label="Main navigation"><a href="/">Shop</a><a href="/reviews.html">Reviews</a><a class="active" href="/account.html"><i></i>Account</a></nav>
+      <button class="account-signout" id="logoutButton" type="button" hidden>Sign out</button>
       <a class="account-shop-link" href="/">Continue shopping</a>
     </div></header>
-    <nav class="catnav" aria-label="Customer navigation"><div class="catnav-inner"><span class="catnav-tab active">Overview</span><a class="catnav-tab" href="#orders">Orders</a><a class="catnav-tab" href="#details">Account details</a><a class="catnav-tab" href="#support">Support</a></div></nav>
+    <nav class="catnav" id="accountNav" aria-label="Customer navigation" hidden><div class="catnav-inner"><span class="catnav-tab active">Overview</span><a class="catnav-tab" href="#orders">Orders</a><a class="catnav-tab" href="#activity">Activity</a><a class="catnav-tab" href="#details">Account details</a><a class="catnav-tab" href="#support">Support</a></div></nav>
 
-    <main class="account-main">
+    <main class="auth-main" id="authView">
+      <section class="auth-intro">
+        <span class="account-kicker">YOUR PRIVATE CUSTOMER SPACE</span>
+        <h1>Keep every order and update in one secure place.</h1>
+        <p>Create an account to access your purchases from any device, monitor payment and shipping progress, and review your recent activity.</p>
+        <div class="auth-benefits">
+          <article><b>Order tracking</b><span>See pending, paid and shipped orders.</span></article>
+          <article><b>Activity timeline</b><span>Review sign-ins, purchases and payment proofs.</span></article>
+          <article><b>Cross-device access</b><span>Your history is attached to your account, not one browser.</span></article>
+        </div>
+      </section>
+      <section class="auth-card" aria-labelledby="authTitle">
+        <div class="auth-switch" role="tablist" aria-label="Account access">
+          <button class="active" id="loginTab" type="button" role="tab" aria-selected="true">Sign in</button>
+          <button id="registerTab" type="button" role="tab" aria-selected="false">Create account</button>
+        </div>
+        <div class="auth-copy"><span class="account-kicker">SECURE ACCESS</span><h2 id="authTitle">Welcome back</h2><p id="authDescription">Sign in to open your customer dashboard.</p></div>
+        <form id="loginForm" class="auth-form">
+          <label>Email address<input type="email" name="email" autocomplete="email" required placeholder="you@example.com"></label>
+          <label>Password<input type="password" name="password" autocomplete="current-password" required placeholder="Your password"></label>
+          <button class="primary-action auth-submit" type="submit">Sign in</button>
+        </form>
+        <form id="registerForm" class="auth-form" hidden>
+          <label>Full name<input type="text" name="fullName" autocomplete="name" maxlength="120" required placeholder="Your full name"></label>
+          <label>Email address<input type="email" name="email" autocomplete="email" required placeholder="you@example.com"></label>
+          <label>Password<input type="password" name="password" autocomplete="new-password" minlength="10" maxlength="128" required placeholder="At least 10 characters"></label>
+          <button class="primary-action auth-submit" type="submit">Create my space</button>
+        </form>
+        <p class="auth-error" id="authError" role="alert"></p>
+        <p class="auth-privacy">Passwords are protected with a one-way cryptographic hash and are never displayed.</p>
+      </section>
+    </main>
+
+    <main class="account-main" id="dashboardView" hidden>
       <section class="account-hero">
         <div class="account-avatar" id="accountAvatar">CE</div>
         <div><span class="account-kicker">CUSTOMER DASHBOARD</span><h1>Welcome, <span id="customerName">Customer</span></h1><p>Track your orders, payment reviews and delivery information from one private space.</p></div>
-        <div class="browser-security"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 7 4v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V7z"></path><path d="m9 12 2 2 4-4"></path></svg><span><b>Browser protected</b><small>Your order history is linked to this browser.</small></span></div>
+        <div class="browser-security"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 7 4v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V7z"></path><path d="m9 12 2 2 4-4"></path></svg><span><b>Account protected</b><small>Your history follows you securely across devices.</small></span></div>
       </section>
 
       <section class="summary-grid" aria-label="Order summary">
@@ -45,9 +79,10 @@
       <div class="account-layout">
         <aside class="account-sidebar">
           <a class="active" href="#orders"><span>01</span><b>My orders</b></a>
-          <a href="#details"><span>02</span><b>Delivery details</b></a>
-          <a href="#support"><span>03</span><b>Customer support</b></a>
-          <div class="privacy-note"><b>Private by design</b><p>No password is stored. Clearing this browser’s site data will disconnect this order history.</p></div>
+          <a href="#activity"><span>02</span><b>Recent activity</b></a>
+          <a href="#details"><span>03</span><b>Account details</b></a>
+          <a href="#support"><span>04</span><b>Customer support</b></a>
+          <div class="privacy-note"><b>Private by design</b><p>Your account uses a secure HttpOnly session. Your password is stored only as a protected hash.</p></div>
         </aside>
 
         <div class="account-content">
@@ -55,11 +90,18 @@
             <div class="panel-heading"><div><span class="account-kicker">ORDER HISTORY</span><h2>Your recent orders</h2></div><button id="refreshAccount" class="account-refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7L20 8"></path><path d="M20 3v5h-5"></path></svg>Refresh</button></div>
             <div class="account-loading" id="accountLoading"><span class="loader"></span><p>Loading your customer space…</p></div>
             <div class="orders-list" id="ordersList"></div>
-            <div class="account-empty" id="accountEmpty" hidden><div class="empty-order-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6zM9 9V6a3 3 0 0 1 6 0v3"></path></svg></div><h3>No orders on this browser yet</h3><p>Your future web purchases will appear here automatically.</p><a class="primary-action" href="/">Explore products</a></div>
+            <div class="account-empty" id="accountEmpty" hidden><div class="empty-order-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6zM9 9V6a3 3 0 0 1 6 0v3"></path></svg></div><h3>No orders in your account yet</h3><p>Your future web purchases will appear here automatically.</p><a class="primary-action" href="/">Explore products</a></div>
+          </section>
+
+          <section class="account-panel" id="activity">
+            <div class="panel-heading"><div><span class="account-kicker">RECENT ACTIVITY</span><h2>What happened in your space</h2></div></div>
+            <div class="activity-list" id="activityList"></div>
+            <div class="activity-empty" id="activityEmpty" hidden>No activity recorded yet.</div>
           </section>
 
           <section class="account-panel details-panel" id="details">
-            <div class="panel-heading"><div><span class="account-kicker">ACCOUNT DETAILS</span><h2>Latest delivery information</h2></div></div>
+            <div class="panel-heading"><div><span class="account-kicker">ACCOUNT DETAILS</span><h2>Your profile and delivery information</h2></div></div>
+            <div class="profile-grid" id="profileDetails"></div>
             <div class="delivery-grid" id="deliveryDetails"><p>Delivery details will appear after your first order.</p></div>
           </section>
 

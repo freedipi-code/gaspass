@@ -5,6 +5,7 @@
   "main": "src/index.js",
   "type": "commonjs",
   "scripts": {
+    "test": "node --test",
     "start": "node src/index.js",
     "dev": "BOT_MODE=polling node src/index.js",
     "db:generate": "prisma generate",

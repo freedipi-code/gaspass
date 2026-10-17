@@ -4,10 +4,61 @@ const prisma = require('./db/client');
 const config = require('./config');
 const cryptoService = require('./services/crypto.service');
 const notifyService = require('./services/notify.service');
+const {
+  clearSessionCookie,
+  hashPassword,
+  normalizeEmail,
+  securityHeaders,
+  sessionCookie,
+  sessionFromRequest,
+  validPassword,
+  verifyPassword,
+} = require('./customer-auth');
 
 const router = express.Router();
 
 router.use(express.json({ limit: '100kb' }));
+const loginAttempts = new Map();
+
+async function loadCustomer(req, res, next) {
+  try {
+    const session = sessionFromRequest(req, config.adminAuth.sessionSecret);
+    if (!session) { req.customer = null; return next(); }
+    req.customer = await prisma.user.findFirst({
+      where: { id: session.userId, email: { not: null }, passwordHash: { not: null } },
+      select: { id: true, email: true, fullName: true, createdAt: true, lastLoginAt: true },
+    });
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+function requireCustomer(req, res, next) {
+  securityHeaders(res);
+  if (req.customer) return next();
+  return res.status(401).json({ error: 'Please sign in to access your customer space.' });
+}
+
+function rateKey(req, email) {
+  return `${req.ip || req.socket.remoteAddress || 'unknown'}:${email || 'unknown'}`;
+}
+
+function loginBlocked(key) {
+  const entry = loginAttempts.get(key);
+  if (!entry) return false;
+  if (entry.resetAt <= Date.now()) { loginAttempts.delete(key); return false; }
+  return entry.count >= 6;
+}
+
+function recordLoginFailure(key) {
+  const current = loginAttempts.get(key);
+  if (!current || current.resetAt <= Date.now()) {
+    loginAttempts.set(key, { count: 1, resetAt: Date.now() + 15 * 60 * 1000 });
+  } else {
+    current.count += 1;
+  }
+}
 
 function requireAdult(req, res, next) {
   if (req.get('x-age-confirmed') !== 'true') {
@@ -21,6 +72,92 @@ function cleanText(value, maxLength, required = false) {
   if (required && !text) throw new Error('All required fields must be completed.');
   return text.slice(0, maxLength) || null;
 }
+
+router.post('/auth/register', requireAdult, async (req, res) => {
+  securityHeaders(res);
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const password = String(req.body?.password || '');
+    const fullName = cleanText(req.body?.fullName, 120);
+    const browserId = String(req.body?.browserId || '');
+    if (!fullName) return res.status(400).json({ error: 'Enter your full name.' });
+    if (!email) return res.status(400).json({ error: 'Enter a valid email address.' });
+    if (!validPassword(password)) return res.status(400).json({ error: 'Password must contain 10 to 128 characters.' });
+
+    const existingEmail = await prisma.user.findUnique({ where: { email } });
+    if (existingEmail) return res.status(409).json({ error: 'An account already exists for this email address.' });
+
+    const passwordHash = await hashPassword(password);
+    const legacyUser = /^[a-f0-9-]{20,64}$/i.test(browserId)
+      ? await prisma.user.findUnique({ where: { telegramId: `web:${browserId}` } })
+      : null;
+
+    const user = await prisma.$transaction(async (tx) => {
+      const account = legacyUser && !legacyUser.email
+        ? await tx.user.update({
+          where: { id: legacyUser.id },
+          data: { email, passwordHash, fullName, lastLoginAt: new Date() },
+        })
+        : await tx.user.create({
+          data: {
+            telegramId: `web-account:${crypto.randomUUID()}`,
+            email,
+            passwordHash,
+            fullName,
+            lastLoginAt: new Date(),
+          },
+        });
+      await tx.customerActivity.create({
+        data: { userId: account.id, type: 'account_created', detail: 'Customer account created' },
+      });
+      return account;
+    });
+
+    res.set('Set-Cookie', sessionCookie(user.id, config.adminAuth.sessionSecret));
+    return res.status(201).json({ profile: { fullName: user.fullName, email: user.email } });
+  } catch (error) {
+    console.error('Customer registration error:', error.message);
+    if (error.code === 'P2002') return res.status(409).json({ error: 'An account already exists for this email address.' });
+    return res.status(500).json({ error: 'Your account could not be created. Please try again.' });
+  }
+});
+
+router.post('/auth/login', requireAdult, async (req, res) => {
+  securityHeaders(res);
+  const email = normalizeEmail(req.body?.email);
+  const key = rateKey(req, email);
+  if (loginBlocked(key)) return res.status(429).json({ error: 'Too many attempts. Try again in 15 minutes.' });
+  try {
+    const user = email ? await prisma.user.findUnique({ where: { email } }) : null;
+    if (!user || !await verifyPassword(req.body?.password, user.passwordHash)) {
+      recordLoginFailure(key);
+      return res.status(401).json({ error: 'Incorrect email or password.' });
+    }
+    loginAttempts.delete(key);
+    const loggedInAt = new Date();
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: loggedInAt } }),
+      prisma.customerActivity.create({ data: { userId: user.id, type: 'login', detail: 'Signed in to customer space' } }),
+    ]);
+    res.set('Set-Cookie', sessionCookie(user.id, config.adminAuth.sessionSecret));
+    return res.json({ profile: { fullName: user.fullName, email: user.email } });
+  } catch (error) {
+    console.error('Customer login error:', error.message);
+    return res.status(500).json({ error: 'Sign-in is temporarily unavailable.' });
+  }
+});
+
+router.post('/auth/logout', requireAdult, (_req, res) => {
+  securityHeaders(res);
+  res.set('Set-Cookie', clearSessionCookie());
+  return res.json({ success: true });
+});
+
+router.get('/auth/me', requireAdult, loadCustomer, (req, res) => {
+  securityHeaders(res);
+  if (!req.customer) return res.status(401).json({ authenticated: false });
+  return res.json({ authenticated: true, profile: req.customer });
+});
 
 function formatCryptoAmount(amount, paymentMethod) {
   return amount.toFixed(paymentMethod === 'XMR' ? 12 : 8);
@@ -181,10 +318,10 @@ router.get('/reviews', requireAdult, async (_req, res) => {
   }
 });
 
-router.post('/orders', requireAdult, async (req, res) => {
+router.post('/orders', requireAdult, loadCustomer, async (req, res) => {
   try {
     const { browserId, items, shipping = {}, paymentMethod, refundAddress, notes } = req.body || {};
-    if (!/^[a-f0-9-]{20,64}$/i.test(String(browserId || ''))) {
+    if (!req.customer && !/^[a-f0-9-]{20,64}$/i.test(String(browserId || ''))) {
       return res.status(400).json({ error: 'Invalid session identifier.' });
     }
     if (!Array.isArray(items) || items.length === 0 || items.length > 50) {
@@ -266,11 +403,13 @@ router.post('/orders', requireAdult, async (req, res) => {
     );
 
     const order = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.upsert({
-        where: { telegramId: `web:${browserId}` },
-        create: { telegramId: `web:${browserId}`, fullName: customer.name },
-        update: { fullName: customer.name },
-      });
+      const user = req.customer
+        ? await tx.user.update({ where: { id: req.customer.id }, data: { fullName: customer.name } })
+        : await tx.user.upsert({
+          where: { telegramId: `web:${browserId}` },
+          create: { telegramId: `web:${browserId}`, fullName: customer.name },
+          update: { fullName: customer.name },
+        });
 
       for (const [productId, quantity] of quantitiesByProduct) {
         const updated = await tx.product.updateMany({
@@ -280,7 +419,7 @@ router.post('/orders', requireAdult, async (req, res) => {
         if (updated.count !== 1) throw new Error(`Insufficient stock for ${productsById.get(productId).name}.`);
       }
 
-      return tx.order.create({
+      const createdOrder = await tx.order.create({
         data: {
           orderNumber: `WEB-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`,
           userId: user.id,
@@ -299,6 +438,12 @@ router.post('/orders', requireAdult, async (req, res) => {
         },
         include: { items: { include: { product: true, variant: true } }, user: true },
       });
+      if (req.customer) {
+        await tx.customerActivity.create({
+          data: { userId: user.id, type: 'order_created', detail: `Order ${createdOrder.orderNumber} created` },
+        });
+      }
+      return createdOrder;
     }, { maxWait: 60000, timeout: 120000 });
 
     const paymentUri = buildPaymentUri(paymentMethod, walletAddress, cryptoAmount);
@@ -327,17 +472,20 @@ router.post('/orders', requireAdult, async (req, res) => {
   }
 });
 
-router.get('/account', requireAdult, async (req, res) => {
+router.get('/account', requireAdult, loadCustomer, requireCustomer, async (req, res) => {
   try {
-    const browserId = String(req.query.browserId || '');
-    if (!/^[a-f0-9-]{20,64}$/i.test(browserId)) {
-      return res.status(400).json({ error: 'Invalid session identifier.' });
-    }
-
     const user = await prisma.user.findUnique({
-      where: { telegramId: `web:${browserId}` },
+      where: { id: req.customer.id },
       select: {
         fullName: true,
+        email: true,
+        createdAt: true,
+        lastLoginAt: true,
+        activities: {
+          orderBy: { createdAt: 'desc' },
+          take: 30,
+          select: { id: true, type: true, detail: true, createdAt: true },
+        },
         orders: {
           orderBy: { createdAt: 'desc' },
           take: 50,
@@ -373,6 +521,9 @@ router.get('/account', requireAdult, async (req, res) => {
     return res.json({
       profile: {
         fullName: user?.fullName || null,
+        email: user?.email || null,
+        memberSince: user?.createdAt || null,
+        lastLoginAt: user?.lastLoginAt || null,
         shipping: latest ? {
           name: latest.shippingName,
           country: latest.shippingCountry,
@@ -394,6 +545,7 @@ router.get('/account', requireAdult, async (req, res) => {
         proofReceived: Boolean(order.proofMessage),
         proofMessage: undefined,
       })),
+      activities: user?.activities || [],
     });
   } catch (error) {
     console.error('Storefront account error:', error.message);
@@ -401,15 +553,28 @@ router.get('/account', requireAdult, async (req, res) => {
   }
 });
 
-router.post('/orders/:orderNumber/proof', requireAdult, async (req, res) => {
+router.post('/orders/:orderNumber/proof', requireAdult, loadCustomer, async (req, res) => {
   try {
     const browserId = String(req.body?.browserId || '');
     const proof = cleanText(req.body?.proof, 500, true);
+    if (!req.customer && !/^[a-f0-9-]{20,64}$/i.test(browserId)) {
+      return res.status(401).json({ error: 'Please sign in or use the browser that created this order.' });
+    }
     const order = await prisma.order.findFirst({
-      where: { orderNumber: req.params.orderNumber, user: { telegramId: `web:${browserId}` } },
+      where: {
+        orderNumber: req.params.orderNumber,
+        ...(req.customer ? { userId: req.customer.id } : { user: { telegramId: `web:${browserId}` } }),
+      },
     });
     if (!order) return res.status(404).json({ error: 'Order not found.' });
-    await prisma.order.update({ where: { id: order.id }, data: { proofMessage: proof } });
+    await prisma.$transaction(async (tx) => {
+      await tx.order.update({ where: { id: order.id }, data: { proofMessage: proof } });
+      if (req.customer) {
+        await tx.customerActivity.create({
+          data: { userId: req.customer.id, type: 'payment_proof', detail: `Payment proof submitted for ${order.orderNumber}` },
+        });
+      }
+    });
     const bot = req.app.locals.bot;
     if (bot) {
       bot.telegram.sendMessage(
