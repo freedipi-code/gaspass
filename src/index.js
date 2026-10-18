@@ -35,6 +35,23 @@ async function startWebhook() {
   }
   const app = express();
   const url = config.webhook.domain.replace(/\/$/, '') + config.webhook.path;
+  const me = await bot.telegram.getMe();
+
+  // Validate Telegram updates before Telegraf receives them. Hosting health
+  // checks sometimes POST an empty object to the webhook path.
+  app.use(config.webhook.path, express.json({ limit: '1mb' }), (req, res, next) => {
+    if (req.method !== 'POST') return res.sendStatus(405);
+    const update = req.body;
+    const eventTypes = update && typeof update === 'object'
+      ? Object.keys(update).filter((key) => key !== 'update_id')
+      : [];
+    if (!Number.isInteger(update?.update_id) || eventTypes.length === 0) {
+      console.warn('[telegram] ignored invalid webhook payload');
+      return res.sendStatus(204);
+    }
+    console.log(`[telegram] webhook accepted update=${update.update_id} event=${eventTypes[0]}`);
+    return next();
+  });
 
   setupExpressApp(app);
 
@@ -47,7 +64,7 @@ async function startWebhook() {
   }));
 
   app.listen(config.webhook.port, () => {
-    console.log(`🤖 Bot lancé en mode WEBHOOK sur le port ${config.webhook.port}`);
+    console.log(`🤖 Bot lancé en mode WEBHOOK sur le port ${config.webhook.port} — @${me.username}`);
     console.log(`   URL configurée : ${url}`);
     console.log(`📊 Admin Dashboard disponible sur /admin`);
   });

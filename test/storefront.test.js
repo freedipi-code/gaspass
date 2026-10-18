@@ -7,6 +7,11 @@ const { resolveImageWithFallback } = require('../src/utils/image');
 const { buildCartView } = require('../src/bot/handlers/cart');
 const { buildWelcomeText } = require('../src/bot/handlers/start');
 const checkoutScene = require('../src/bot/scenes/checkout');
+const bot = require('../src/bot/bot');
+
+test('webhook replies are sent explicitly through the Telegram API', () => {
+  assert.equal(bot.telegram.webhookReply, false);
+});
 
 test('home caption matches the Tommy Sweets reference', () => {
   const caption = buildWelcomeText({ session: {} });
