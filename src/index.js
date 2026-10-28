@@ -4,13 +4,20 @@ const config = require('./config');
 const bot = require('./bot/bot');
 const adminRouter = require('./bot/admin.router');
 
+let webhookReady = false;
+let httpServer;
+
 function setupExpressApp(app) {
   // Mount admin API routes
   app.use('/api/admin', adminRouter);
   // Serve admin static dashboard
   app.use('/admin', express.static(path.join(__dirname, 'public/admin')));
   // Health check
-  app.get('/health', (_req, res) => res.json({ ok: true }));
+  app.get('/health', (_req, res) => res.json({
+    ok: true,
+    mode: config.mode,
+    webhookReady: config.mode === 'webhook' ? webhookReady : undefined,
+  }));
 }
 
 async function startPolling() {
@@ -22,10 +29,12 @@ async function startPolling() {
   const app = express();
   setupExpressApp(app);
   const port = config.webhook.port || 3000;
-  app.listen(port, () => {
-    console.log(`📊 Admin Dashboard disponible sur http://localhost:${port}/admin`);
+  httpServer = app.listen(port, '0.0.0.0', () => {
+    console.log(`[startup] HTTP server listening on 0.0.0.0:${port}`);
+    console.log(`[startup] Admin dashboard available at /admin`);
   });
 
+  console.log('[startup] Starting Telegram polling...');
   await bot.launch({ dropPendingUpdates: false });
 }
 
@@ -35,7 +44,6 @@ async function startWebhook() {
   }
   const app = express();
   const url = config.webhook.domain.replace(/\/$/, '') + config.webhook.path;
-  const me = await bot.telegram.getMe();
 
   // Validate Telegram updates before Telegraf receives them. Hosting health
   // checks sometimes POST an empty object to the webhook path.
@@ -55,19 +63,32 @@ async function startWebhook() {
 
   setupExpressApp(app);
 
-  // Webhook Telegram avec validation par secret token
-  app.use(await bot.createWebhook({
-    domain: config.webhook.domain,
-    path: config.webhook.path,
-    secret_token: config.webhook.secret || undefined,
-    drop_pending_updates: false,
+  // Install the callback before registering the webhook so the HTTP service
+  // remains reachable even if Telegram is temporarily unavailable.
+  app.use(bot.webhookCallback(config.webhook.path, {
+    secretToken: config.webhook.secret || undefined,
   }));
 
-  app.listen(config.webhook.port, () => {
-    console.log(`🤖 Bot lancé en mode WEBHOOK sur le port ${config.webhook.port} — @${me.username}`);
-    console.log(`   URL configurée : ${url}`);
-    console.log(`📊 Admin Dashboard disponible sur /admin`);
+  await new Promise((resolve, reject) => {
+    httpServer = app.listen(config.webhook.port, '0.0.0.0', resolve);
+    httpServer.once('error', reject);
   });
+  console.log(`[startup] HTTP server listening on 0.0.0.0:${config.webhook.port}`);
+  console.log(`[startup] Webhook endpoint: ${url}`);
+  console.log('[startup] Registering webhook with Telegram...');
+
+  try {
+    const me = await bot.telegram.getMe();
+    await bot.telegram.setWebhook(url, {
+      secret_token: config.webhook.secret || undefined,
+      drop_pending_updates: false,
+    });
+    webhookReady = true;
+    console.log(`[startup] Telegram webhook registered successfully for @${me.username}`);
+  } catch (error) {
+    console.error(`[startup] Telegram webhook registration failed: ${error.message}`);
+    console.error('[startup] The HTTP server is still running; fix the domain/SSL/configuration and restart.');
+  }
 }
 
 (async () => {
@@ -83,6 +104,20 @@ async function startWebhook() {
   }
 })();
 
+process.on('unhandledRejection', (error) => {
+  console.error('[process] Unhandled promise rejection:', error);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('[process] Uncaught exception:', error);
+});
+
 // Arrêt propre
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+process.once('SIGINT', () => {
+  if (httpServer) httpServer.close();
+  bot.stop('SIGINT');
+});
+process.once('SIGTERM', () => {
+  if (httpServer) httpServer.close();
+  bot.stop('SIGTERM');
+});
