@@ -26,7 +26,7 @@ async function startPolling() {
     console.log(`📊 Admin Dashboard disponible sur http://localhost:${port}/admin`);
   });
 
-  await bot.launch();
+  await bot.launch({ dropPendingUpdates: false });
 }
 
 async function startWebhook() {
