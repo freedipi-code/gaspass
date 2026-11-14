@@ -2,7 +2,8 @@ const $=(selector)=>document.querySelector(selector);
 const escapeHtml=(value)=>String(value??'').replace(/[&<>'"]/g,character=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));
 const money=(value)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(value);
 const imageUrl=(image)=>image?`/${String(image).replace(/^\/+/, '')}`:'/images/cana.jpeg';
-function getBrowserId(){let id=localStorage.getItem('canna-browser-id');if(!id){id=crypto.randomUUID();localStorage.setItem('canna-browser-id',id)}return id}
+function generateBrowserId(){try{if(typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function')return crypto.randomUUID()}catch(_){}try{if(typeof crypto!=='undefined'&&typeof crypto.getRandomValues==='function')return([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>(c^(crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4)).toString(16))}catch(_){}return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16)})}
+function getBrowserId(){let id=localStorage.getItem('canna-browser-id');if(!id){id=generateBrowserId();localStorage.setItem('canna-browser-id',id)}return id}
 function initials(name){return String(name||'Canna Express').split(/\s+/).map(part=>part[0]).slice(0,2).join('').toUpperCase()}
 function statusLabel(status){return({pending:'Pending',paid:'Paid',shipped:'Shipped',cancelled:'Cancelled'})[status]||status}
 function formatDate(date){if(!date)return'—';return new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}).format(new Date(date))}

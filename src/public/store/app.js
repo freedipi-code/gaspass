@@ -23,7 +23,8 @@ function setupCustomSelect(select){
   document.addEventListener('click',close);select.addEventListener('change',render);select.renderCustom=render;render();
 }
 
-function getBrowserId(){let id=localStorage.getItem('canna-browser-id');if(!id){id=crypto.randomUUID();localStorage.setItem('canna-browser-id',id)}return id}
+function generateBrowserId(){try{if(typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function')return crypto.randomUUID()}catch(_){}try{if(typeof crypto!=='undefined'&&typeof crypto.getRandomValues==='function')return([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,c=>(c^(crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4)).toString(16))}catch(_){}return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16)})}
+function getBrowserId(){let id=localStorage.getItem('canna-browser-id');if(!id){id=generateBrowserId();localStorage.setItem('canna-browser-id',id)}return id}
 async function api(path,options={}){const response=await fetch(`/api/store${path}`,{...options,headers:{'content-type':'application/json','x-age-confirmed':'true',...(options.headers||{})}});const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'Something went wrong. Please try again.');return payload}
 function showToast(message){const toast=$('#toast');toast.textContent=message;toast.classList.add('show');clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.classList.remove('show'),2400)}
 function setBodyLock(){document.body.classList.toggle('no-scroll',Boolean(document.querySelector('.open:not(.screen-overlay)')||$('#filterDrawer').classList.contains('open')))}
